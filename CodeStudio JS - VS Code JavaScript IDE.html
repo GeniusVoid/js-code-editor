@@ -1,0 +1,2466 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodeStudio JS — Independent JavaScript IDE with IntelliSense</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: JetBrains Mono for code, Inter for UI -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'Consolas', 'monospace'],
+          },
+          colors: {
+            vscode: {
+              bg: '#1e1e1e',
+              sidebar: '#252526',
+              activity: '#333333',
+              tabActive: '#1e1e1e',
+              tabInactive: '#2d2d2d',
+              border: '#3c3c3c',
+              hover: '#2a2d2e',
+              selection: '#264f78',
+              widget: '#252526',
+              widgetBorder: '#454545',
+              accent: '#007acc',
+              accentHover: '#1f8ad2',
+              status: '#007acc'
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    :root {
+      --editor-bg: #1e1e1e;
+      --sidebar-bg: #252526;
+      --activity-bg: #333333;
+      --border-color: #3c3c3c;
+      --text-main: #d4d4d4;
+      --line-height: 22px;
+      --font-size: 14px;
+    }
+
+    body.theme-monokai {
+      --editor-bg: #272822;
+      --sidebar-bg: #1e1f1c;
+      --activity-bg: #171814;
+      --border-color: #3e3d32;
+    }
+
+    body.theme-dracula {
+      --editor-bg: #282a36;
+      --sidebar-bg: #21222c;
+      --activity-bg: #191a21;
+      --border-color: #44475a;
+    }
+
+    body.theme-github-dark {
+      --editor-bg: #0d1117;
+      --sidebar-bg: #161b22;
+      --activity-bg: #010409;
+      --border-color: #30363d;
+    }
+
+    * {
+      box-sizing: border-box;
+      scrollbar-width: thin;
+      scrollbar-color: #424242 transparent;
+    }
+
+    *::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    *::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    *::-webkit-scrollbar-thumb {
+      background-color: rgba(121, 121, 121, 0.4);
+      border-radius: 5px;
+    }
+    *::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(160, 160, 160, 0.6);
+    }
+
+    /* Core Editor Layer Alignment (Pixel-Perfect Guarantee) */
+    .editor-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background-color: var(--editor-bg);
+      overflow: hidden;
+    }
+
+    .editor-shared-metrics {
+      font-family: 'JetBrains Mono', Consolas, 'Courier New', monospace !important;
+      font-size: var(--font-size) !important;
+      line-height: var(--line-height) !important;
+      letter-spacing: 0px !important;
+      tab-size: 2 !important;
+      -moz-tab-size: 2 !important;
+      padding: 16px 16px 120px 16px !important;
+      margin: 0 !important;
+      border: 0 !important;
+      white-space: pre !important;
+      word-wrap: normal !important;
+      overflow-wrap: normal !important;
+      font-variant-ligatures: none !important;
+    }
+
+    #code-textarea {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      color: transparent;
+      background: transparent;
+      caret-color: #aeafad;
+      resize: none;
+      outline: none;
+      z-index: 2;
+      overflow: auto;
+    }
+
+    #code-textarea::selection {
+      background-color: rgba(38, 79, 120, 0.65);
+      color: transparent;
+    }
+
+    #code-highlight-pre {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+      overflow: hidden;
+      color: #d4d4d4;
+    }
+
+    /* Active Line Highlight Bar */
+    #active-line-bar {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: var(--line-height);
+      background-color: rgba(255, 255, 255, 0.04);
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      pointer-events: none;
+      z-index: 0;
+      transition: top 0.03s linear;
+    }
+
+    /* Syntax Highlighting Colors (VS Code Dark+ Default) */
+    .tok-keyword { color: #569cd6; font-weight: 500; }
+    .tok-control { color: #c586c0; font-weight: 500; }
+    .tok-string { color: #ce9178; }
+    .tok-template { color: #ce9178; }
+    .tok-number { color: #b5cea8; }
+    .tok-boolean { color: #569cd6; }
+    .tok-comment { color: #6a9955; font-style: italic; }
+    .tok-function { color: #dcdcaa; }
+    .tok-class { color: #4ec9b0; }
+    .tok-property { color: #9cdcfe; }
+    .tok-variable { color: #9cdcfe; }
+    .tok-operator { color: #d4d4d4; }
+    .tok-punctuation { color: #ffd700; }
+    .tok-regex { color: #d16969; }
+    .tok-ghost { color: rgba(150, 150, 150, 0.42); font-style: italic; }
+
+    /* Error Squiggle Line */
+    .error-line-bg {
+      background: rgba(244, 71, 71, 0.14);
+      border-bottom: 1px wavy #f44747;
+    }
+
+    /* VS Code IntelliSense Widget */
+    #intellisense-widget {
+      position: absolute;
+      z-index: 50;
+      display: none;
+      filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.55));
+    }
+
+    /* Signature Help Tooltip */
+    #signature-widget {
+      position: absolute;
+      z-index: 45;
+      display: none;
+      filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.45));
+    }
+
+    /* Completion Item Kind Badges (Authentic VS Code Colors) */
+    .kind-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .kind-method, .kind-function { color: #b180d7; }
+    .kind-property, .kind-field { color: #75beff; }
+    .kind-variable, .kind-const { color: #4fc1ff; }
+    .kind-class, .kind-constructor { color: #ee9d28; }
+    .kind-keyword { color: #c586c0; }
+    .kind-snippet { color: #d4d4d4; }
+    .kind-module { color: #4ec9b0; }
+
+    @keyframes pulse-fast {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .animate-pulse-fast {
+      animation: pulse-fast 1.2s infinite;
+    }
+  </style>
+</head>
+<body class="bg-[#1e1e1e] text-[#cccccc] font-sans h-screen w-screen overflow-hidden flex flex-col select-none">
+
+  <!-- TOP TITLE BAR / MENU BAR -->
+  <header class="h-10 bg-[#323233] border-b border-[#252526] flex items-center justify-between px-3 shrink-0 z-30">
+    <!-- Left: Brand + Quick Menu -->
+    <div class="flex items-center space-x-3">
+      <div class="flex items-center space-x-2">
+        <div class="w-6 h-6 rounded bg-[#007acc] flex items-center justify-center text-white font-bold text-xs shadow-inner">
+          JS
+        </div>
+        <span class="font-semibold text-sm text-white tracking-tight hidden sm:inline">CodeStudio JS</span>
+      </div>
+
+      <!-- Menu Pills -->
+      <div class="hidden md:flex items-center space-x-1 text-xs text-[#cccccc]">
+        <button id="btn-new-file-top" class="px-2 py-1 rounded hover:bg-[#454646] transition" title="Create New JS File">
+          <i class="fa-solid fa-file-circle-plus mr-1 text-[#75beff]"></i>New File
+        </button>
+        <button id="btn-snippets-modal" class="px-2 py-1 rounded hover:bg-[#454646] transition" title="Insert Code Snippet">
+          <i class="fa-solid fa-wand-magic-sparkles mr-1 text-[#b180d7]"></i>Snippets
+        </button>
+        <button id="btn-format-code" class="px-2 py-1 rounded hover:bg-[#454646] transition" title="Format Code (Shift+Alt+F)">
+          <i class="fa-solid fa-indent mr-1 text-[#4ec9b0]"></i>Format
+        </button>
+        <button id="btn-trigger-suggest" class="px-2 py-1 rounded hover:bg-[#454646] transition" title="Trigger IntelliSense (Ctrl+Space)">
+          <i class="fa-solid fa-bolt mr-1 text-[#ee9d28]"></i>Suggest (Ctrl+Space)
+        </button>
+        <button id="btn-download-file" class="px-2 py-1 rounded hover:bg-[#454646] transition" title="Download Active .js File">
+          <i class="fa-solid fa-download mr-1 text-[#9cdcfe]"></i>Export .js
+        </button>
+      </div>
+    </div>
+
+    <!-- Center: Search / Command Palette Trigger -->
+    <div class="flex-1 max-w-md mx-2">
+      <button id="btn-command-palette" class="w-full bg-[#3c3c3c] hover:bg-[#464647] border border-[#555555] rounded-md py-1 px-3 text-xs text-[#cccccc] flex items-center justify-between transition">
+        <span class="flex items-center truncate">
+          <i class="fa-solid fa-magnifying-glass mr-2 text-[#999999]"></i>
+          <span id="active-filename-title" class="text-white font-medium mr-1">main.js</span>
+          <span class="text-[#888888] hidden sm:inline">— Command Palette & Quick Search</span>
+        </span>
+        <kbd class="bg-[#252526] text-[#aaaaaa] px-1.5 py-0.5 rounded text-[10px] border border-[#454545] ml-2 shrink-0">F1 / Ctrl+K</kbd>
+      </button>
+    </div>
+
+    <!-- Right: Run Controls & Theme -->
+    <div class="flex items-center space-x-2">
+      <!-- Auto-Run Toggle -->
+      <label class="flex items-center space-x-1.5 cursor-pointer bg-[#252526] hover:bg-[#2d2d2d] px-2.5 py-1 rounded border border-[#3c3c3c] text-xs" title="Automatically execute code as you type (Live Scratchpad)">
+        <input type="checkbox" id="toggle-autorun" class="accent-[#007acc] rounded cursor-pointer" />
+        <span class="text-[#cccccc] hidden sm:inline">Live Run</span>
+      </label>
+
+      <!-- Run Button -->
+      <button id="btn-run-code" class="bg-[#16825d] hover:bg-[#1a9b6f] active:scale-95 text-white font-medium text-xs px-3.5 py-1.5 rounded flex items-center space-x-1.5 shadow transition" title="Execute JavaScript (Ctrl+Enter or Cmd+Enter)">
+        <i class="fa-solid fa-play text-[10px]"></i>
+        <span>Run Code</span>
+        <kbd class="hidden lg:inline-block bg-black/25 text-[10px] px-1 rounded ml-1">Ctrl+↵</kbd>
+      </button>
+
+      <!-- Theme Switcher -->
+      <select id="theme-select" class="bg-[#252526] text-xs text-[#cccccc] border border-[#3c3c3c] rounded px-2 py-1 outline-none focus:border-[#007acc] hidden sm:block" title="Editor Color Theme">
+        <option value="vscode-dark">VS Code Dark+</option>
+        <option value="github-dark">GitHub Dark</option>
+        <option value="monokai">Monokai Pro</option>
+        <option value="dracula">Dracula</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- MAIN WORKBENCH AREA -->
+  <div class="flex-1 flex overflow-hidden relative">
+
+    <!-- FAR LEFT ACTIVITY BAR -->
+    <aside class="w-12 bg-[#333333] border-r border-[#252526] flex flex-col items-center justify-between py-2 shrink-0 z-20">
+      <div class="flex flex-col items-center space-y-3 w-full">
+        <button data-sidebar="explorer" class="activity-btn w-full py-2.5 flex justify-center text-white border-l-2 border-white bg-[#252526]/40 transition" title="Explorer (Files & Outline)">
+          <i class="fa-regular fa-copy text-lg"></i>
+        </button>
+        <button data-sidebar="intellisense" class="activity-btn w-full py-2.5 flex justify-center text-[#858585] hover:text-white border-l-2 border-transparent transition" title="Live Symbols & Type Inspector">
+          <i class="fa-solid fa-code-branch text-lg"></i>
+        </button>
+        <button data-sidebar="snippets" class="activity-btn w-full py-2.5 flex justify-center text-[#858585] hover:text-white border-l-2 border-transparent transition" title="VS Code Snippets & Templates">
+          <i class="fa-solid fa-puzzle-piece text-lg"></i>
+        </button>
+      </div>
+
+      <div class="flex flex-col items-center space-y-3 w-full">
+        <button id="btn-shortcuts-help" class="w-full py-2.5 flex justify-center text-[#858585] hover:text-white transition" title="Keyboard Shortcuts & IntelliSense Guide">
+          <i class="fa-regular fa-keyboard text-lg"></i>
+        </button>
+        <button id="btn-reset-workspace" class="w-full py-2.5 flex justify-center text-[#858585] hover:text-[#f48771] transition" title="Reset Starter Files">
+          <i class="fa-solid fa-rotate-left text-base"></i>
+        </button>
+      </div>
+    </aside>
+
+    <!-- COLLAPSIBLE SIDEBAR PANEL -->
+    <aside id="sidebar-panel" class="w-60 bg-[#252526] border-r border-[#3c3c3c] flex flex-col shrink-0 select-none hidden md:flex">
+      
+      <!-- Sidebar View 1: Explorer -->
+      <div id="sidebar-view-explorer" class="flex-1 flex flex-col overflow-hidden">
+        <div class="px-4 py-2.5 text-[11px] font-bold tracking-wider uppercase text-[#bbbbbb] flex items-center justify-between border-b border-[#333333]">
+          <span>Explorer: Workspace</span>
+          <button id="btn-sidebar-new-file" class="hover:bg-[#3c3c3c] p-1 rounded text-[#cccccc]" title="New JavaScript File">
+            <i class="fa-solid fa-plus"></i>
+          </button>
+        </div>
+
+        <!-- File List -->
+        <div id="file-list-container" class="py-1 overflow-y-auto flex-1 space-y-0.5">
+          <!-- Populated by JS -->
+        </div>
+
+        <!-- Live Detected Symbols Outline (Bottom half of Explorer) -->
+        <div class="border-t border-[#3c3c3c] flex flex-col h-56 shrink-0">
+          <div class="px-4 py-2 text-[11px] font-bold tracking-wider uppercase text-[#bbbbbb] flex items-center justify-between bg-[#2d2d2d]/60">
+            <span><i class="fa-solid fa-cubes mr-1.5 text-[#b180d7]"></i>Live Outline & Types</span>
+            <span id="symbol-count-badge" class="bg-[#3c3c3c] text-[10px] px-1.5 py-0.2 rounded-full">0</span>
+          </div>
+          <div id="outline-list-container" class="flex-1 overflow-y-auto p-2 space-y-1 text-xs font-mono">
+            <!-- Populated dynamically as user types -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar View 2: IntelliSense Inspector -->
+      <div id="sidebar-view-intellisense" class="flex-1 flex flex-col overflow-hidden hidden">
+        <div class="px-4 py-2.5 text-[11px] font-bold tracking-wider uppercase text-[#bbbbbb] border-b border-[#333333]">
+          IntelliSense Engine Settings
+        </div>
+        <div class="p-3 space-y-4 text-xs overflow-y-auto">
+          <div class="bg-[#1e1e1e] p-3 rounded border border-[#3c3c3c] space-y-2">
+            <div class="font-semibold text-white flex items-center">
+              <i class="fa-solid fa-circle-check text-[#4ec9b0] mr-2"></i>Active Capabilities
+            </div>
+            <p class="text-[#aaaaaa] leading-relaxed">
+              As you type, the engine parses your code for variables, functions, classes, and inferred types (`Array`, `String`, `Object`, `Promise`, `Math`, `DOM`, `Canvas`).
+            </p>
+          </div>
+
+          <div class="space-y-2">
+            <label class="flex items-center justify-between cursor-pointer">
+              <span>Auto-Trigger Suggestions</span>
+              <input type="checkbox" id="chk-auto-suggest" checked class="accent-[#007acc]" />
+            </label>
+            <label class="flex items-center justify-between cursor-pointer">
+              <span>Member Dot (`.`) Completion</span>
+              <input type="checkbox" id="chk-dot-suggest" checked class="accent-[#007acc]" />
+            </label>
+            <label class="flex items-center justify-between cursor-pointer">
+              <span>Parameter Signature Help `(`</span>
+              <input type="checkbox" id="chk-sig-help" checked class="accent-[#007acc]" />
+            </label>
+            <label class="flex items-center justify-between cursor-pointer">
+              <span>Auto-Close Brackets & Quotes</span>
+              <input type="checkbox" id="chk-auto-close" checked class="accent-[#007acc]" />
+            </label>
+          </div>
+
+          <div class="border-t border-[#3c3c3c] pt-3">
+            <div class="font-semibold text-white mb-2">Try Typing These in Editor:</div>
+            <div class="space-y-1.5 font-mono text-[11px]">
+              <div class="bg-[#1e1e1e] p-2 rounded border border-[#333333]">
+                <span class="text-[#569cd6]">console</span>.<span class="text-[#dcdcaa]">t</span> <span class="text-[#6a9955]">// -> table, time</span>
+              </div>
+              <div class="bg-[#1e1e1e] p-2 rounded border border-[#333333]">
+                <span class="text-[#569cd6]">const</span> a = [<span class="text-[#b5cea8]">1</span>, <span class="text-[#b5cea8]">2</span>];<br>
+                a.<span class="text-[#dcdcaa]">m</span> <span class="text-[#6a9955]">// -> map, flatMap</span>
+              </div>
+              <div class="bg-[#1e1e1e] p-2 rounded border border-[#333333]">
+                <span class="text-[#dcdcaa]">clg</span> + <kbd class="bg-[#333] px-1 rounded">Tab</kbd> <span class="text-[#6a9955]">// snippet</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sidebar View 3: Quick Snippets -->
+      <div id="sidebar-view-snippets" class="flex-1 flex flex-col overflow-hidden hidden">
+        <div class="px-4 py-2.5 text-[11px] font-bold tracking-wider uppercase text-[#bbbbbb] border-b border-[#333333]">
+          Click to Insert Snippet
+        </div>
+        <div id="sidebar-snippets-list" class="p-2 space-y-1.5 overflow-y-auto flex-1">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- CENTER & RIGHT WORKSPACE: EDITOR + CONSOLE/SANDBOX -->
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden">
+
+      <!-- CODE EDITOR PANE -->
+      <section class="flex-1 flex flex-col min-w-0 h-[58%] lg:h-full border-b lg:border-b-0 lg:border-r border-[#3c3c3c] relative">
+        
+        <!-- Editor Tabs Bar -->
+        <div class="h-9 bg-[#252526] flex items-center justify-between border-b border-[#252526] overflow-x-auto no-scrollbar shrink-0">
+          <div id="editor-tabs-container" class="flex items-center h-full overflow-x-auto">
+            <!-- Tabs rendered by JS -->
+          </div>
+          <!-- Breadcrumb / Quick Action right side of tab bar -->
+          <div class="flex items-center space-x-1 px-2 shrink-0">
+            <span id="syntax-status-pill" class="text-[11px] px-2 py-0.5 rounded bg-[#1e1e1e] text-[#4ec9b0] flex items-center space-x-1 border border-[#333333]">
+              <i class="fa-solid fa-check-circle text-[10px]"></i>
+              <span>Syntax Valid</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Breadcrumb Path Bar -->
+        <div class="h-6 bg-[#1e1e1e] border-b border-[#2b2b2b] px-4 flex items-center justify-between text-[11px] text-[#888888] shrink-0">
+          <div class="flex items-center space-x-1.5 font-mono truncate">
+            <span>workspace</span>
+            <i class="fa-solid fa-chevron-right text-[8px]"></i>
+            <span id="breadcrumb-file" class="text-[#cccccc]">main.js</span>
+            <i class="fa-solid fa-chevron-right text-[8px]"></i>
+            <span id="breadcrumb-scope" class="text-[#dcdcaa]">global scope</span>
+          </div>
+          <div class="hidden sm:flex items-center space-x-3 text-[11px]">
+            <span><kbd class="text-[#aaaaaa]">Tab</kbd> or <kbd class="text-[#aaaaaa]">Enter</kbd> to accept suggestion</span>
+            <span><kbd class="text-[#aaaaaa]">Ctrl+Space</kbd> IntelliSense</span>
+          </div>
+        </div>
+
+        <!-- Editor Body (Gutter + Code Surface) -->
+        <div class="flex-1 flex overflow-hidden relative" id="editor-viewport">
+          
+          <!-- Line Numbers Gutter -->
+          <div id="line-numbers-gutter" class="w-12 bg-[#1e1e1e] border-r border-[#2b2b2b] text-right pr-3 pt-4 select-none text-[#858585] font-mono text-[14px] leading-[22px] overflow-hidden shrink-0">
+            <div>1</div>
+          </div>
+
+          <!-- Code Surface Wrapper -->
+          <div class="editor-container flex-1" id="code-surface">
+            <!-- Active Line Highlight -->
+            <div id="active-line-bar" style="top: 16px;"></div>
+
+            <!-- Syntax Highlighted Layer -->
+            <pre id="code-highlight-pre" class="editor-shared-metrics" aria-hidden="true"><code id="code-highlight-content"></code></pre>
+
+            <!-- Interactive Textarea -->
+            <textarea
+              id="code-textarea"
+              class="editor-shared-metrics"
+              spellcheck="false"
+              autocapitalize="off"
+              autocomplete="off"
+              autocorrect="off"
+              wrap="off"
+              placeholder="// Start typing JavaScript... IntelliSense will appear automatically!"
+            ></textarea>
+
+            <!-- VS CODE SIGNATURE HELP POPUP (Parameter Hints) -->
+            <div id="signature-widget" class="bg-[#252526] border border-[#454545] rounded-md px-3 py-2 text-xs font-mono text-[#cccccc] max-w-md pointer-events-none">
+              <div id="signature-label" class="text-[#dcdcaa] font-medium break-words"></div>
+              <div id="signature-doc" class="text-[11px] text-[#999999] mt-1 font-sans"></div>
+            </div>
+
+            <!-- VS CODE INTELLISENSE AUTOCOMPLETE WIDGET -->
+            <div id="intellisense-widget" class="flex flex-col sm:flex-row items-stretch">
+              <!-- Left List: Completion Items -->
+              <div class="w-72 sm:w-80 bg-[#252526] border border-[#454545] rounded-l-md rounded-r-md sm:rounded-r-none overflow-hidden flex flex-col max-h-64">
+                <div id="intellisense-list" class="overflow-y-auto flex-1 divide-y divide-[#2d2d2d]/40">
+                  <!-- Populated dynamically -->
+                </div>
+                <div class="bg-[#1e1e1e] px-2.5 py-1 border-t border-[#3c3c3c] text-[10px] text-[#888888] flex items-center justify-between">
+                  <span><kbd class="text-[#cccccc]">↑↓</kbd> Navigate • <kbd class="text-[#cccccc]">Tab/↵</kbd> Insert</span>
+                  <span id="intellisense-match-count">0 items</span>
+                </div>
+              </div>
+
+              <!-- Right Flyout: Documentation & Type Details -->
+              <div id="intellisense-docs" class="hidden sm:flex flex-col w-72 bg-[#1e1e1e] border border-l-0 border-[#454545] rounded-r-md p-3 text-xs justify-between max-h-64 overflow-y-auto">
+                <div>
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span id="doc-kind-badge" class="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-[#2d2d2d] text-[#9cdcfe] font-semibold">Method</span>
+                    <span id="doc-source-badge" class="text-[10px] text-[#888888] font-mono">ES2024</span>
+                  </div>
+                  <div id="doc-signature" class="font-mono text-[11px] text-[#dcdcaa] bg-[#252526] p-2 rounded border border-[#333333] mb-2 break-all"></div>
+                  <p id="doc-description" class="text-[#cccccc] text-xs leading-relaxed"></p>
+                </div>
+                <div id="doc-example-box" class="mt-2 pt-2 border-t border-[#2d2d2d]">
+                  <div class="text-[10px] text-[#888888] uppercase mb-1">Example</div>
+                  <pre id="doc-example" class="font-mono text-[11px] text-[#ce9178] bg-[#252526] p-1.5 rounded overflow-x-auto"></pre>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT / BOTTOM PANE: CONSOLE OUTPUT + LIVE DOM/CANVAS SANDBOX -->
+      <section class="w-full lg:w-[42%] h-[42%] lg:h-full bg-[#1e1e1e] flex flex-col shrink-0">
+        
+        <!-- Output Panel Header Tabs -->
+        <div class="h-9 bg-[#252526] border-b border-[#3c3c3c] flex items-center justify-between px-3 shrink-0">
+          <div class="flex items-center space-x-4 h-full text-xs">
+            <button id="tab-btn-console" class="h-full border-b-2 border-[#007acc] text-white font-medium px-1 flex items-center space-x-1.5">
+              <i class="fa-solid fa-terminal text-[#75beff]"></i>
+              <span>Console</span>
+              <span id="console-badge" class="bg-[#3c3c3c] text-[#cccccc] text-[10px] px-1.5 py-0.2 rounded-full">0</span>
+            </button>
+            <button id="tab-btn-sandbox" class="h-full border-b-2 border-transparent text-[#888888] hover:text-white font-medium px-1 flex items-center space-x-1.5">
+              <i class="fa-solid fa-display text-[#4ec9b0]"></i>
+              <span>Visual Sandbox (DOM / Canvas)</span>
+            </button>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <span id="exec-time-badge" class="text-[11px] text-[#888888] font-mono hidden sm:inline">Ready</span>
+            <button id="btn-clear-console" class="text-xs text-[#888888] hover:text-white p-1 rounded hover:bg-[#3c3c3c] transition" title="Clear Console Output">
+              <i class="fa-solid fa-ban"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- VIEW 1: CONSOLE LOGS + REPL -->
+        <div id="panel-console-view" class="flex-1 flex flex-col overflow-hidden">
+          <!-- Console Output Stream -->
+          <div id="console-output" class="flex-1 p-3 overflow-y-auto font-mono text-xs space-y-2 select-text">
+            <!-- Logs appear here -->
+          </div>
+
+          <!-- Interactive REPL Input Bar -->
+          <div class="h-9 bg-[#252526] border-t border-[#3c3c3c] flex items-center px-3 shrink-0">
+            <span class="text-[#007acc] font-mono font-bold mr-2 text-sm">&gt;</span>
+            <input
+              id="repl-input"
+              type="text"
+              placeholder="Evaluate expression in console (e.g. Math.PI * 2, or inspect variables)..."
+              class="bg-transparent text-xs font-mono text-white w-full outline-none placeholder-[#666666]"
+              autocomplete="off"
+            />
+            <button id="btn-repl-send" class="text-xs text-[#888888] hover:text-white ml-2">
+              <i class="fa-solid fa-paper-plane"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- VIEW 2: VISUAL DOM & HTML5 CANVAS SANDBOX -->
+        <div id="panel-sandbox-view" class="flex-1 flex flex-col overflow-hidden hidden bg-[#141414] p-3 space-y-3">
+          <div class="text-[11px] text-[#999999] flex items-center justify-between bg-[#252526] px-3 py-1.5 rounded border border-[#3c3c3c]">
+            <span>Target <code class="text-[#9cdcfe]">#sandbox-app</code> for DOM or <code class="text-[#4ec9b0]">#sandbox-canvas</code> for 2D graphics</span>
+            <button id="btn-reset-sandbox" class="text-[#75beff] hover:underline">Reset Surface</button>
+          </div>
+
+          <!-- Custom DOM Container -->
+          <div id="sandbox-app" class="bg-[#1e1e1e] border border-[#3c3c3c] rounded p-3 min-h-[90px] text-sm text-white overflow-auto select-text">
+            <div class="text-[#888888] text-xs">DOM Output (<code class="text-[#9cdcfe]">document.getElementById('sandbox-app')</code>)</div>
+          </div>
+
+          <!-- Built-in HTML5 Canvas for Creative Coding -->
+          <div class="flex-1 bg-[#1e1e1e] border border-[#3c3c3c] rounded overflow-hidden flex flex-col relative min-h-[160px]">
+            <canvas id="sandbox-canvas" width="500" height="260" class="w-full h-full block"></canvas>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+  </div>
+
+  <!-- BOTTOM VS CODE STATUS BAR -->
+  <footer class="h-6 bg-[#007acc] text-white text-[11px] px-3 flex items-center justify-between shrink-0 z-30">
+    <div class="flex items-center space-x-4">
+      <span class="flex items-center space-x-1 font-medium">
+        <i class="fa-solid fa-code-branch text-[10px]"></i>
+        <span>main*</span>
+      </span>
+      <span id="status-diagnostics" class="flex items-center space-x-2">
+        <span><i class="fa-regular fa-circle-xmark mr-1"></i><span id="status-err-count">0</span></span>
+        <span><i class="fa-solid fa-triangle-exclamation mr-1"></i>0</span>
+      </span>
+      <span class="hidden sm:inline text-white/90" id="status-intellisense-state">
+        <i class="fa-solid fa-wand-magic-sparkles mr-1"></i>IntelliSense Ready
+      </span>
+    </div>
+
+    <div class="flex items-center space-x-4 font-mono">
+      <span id="status-cursor">Ln 1, Col 1</span>
+      <span class="hidden md:inline">Spaces: 2</span>
+      <span class="hidden sm:inline">UTF-8</span>
+      <span class="font-sans font-semibold flex items-center">
+        <i class="fa-brands fa-js mr-1 text-yellow-300"></i>JavaScript (ES2024)
+      </span>
+    </div>
+  </footer>
+
+  <!-- MODAL: COMMAND PALETTE / SNIPPETS / NEW FILE / SHORTCUTS -->
+  <div id="modal-backdrop" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden flex items-start justify-center pt-16 px-4">
+    <div id="modal-box" class="bg-[#252526] border border-[#454545] rounded-lg shadow-2xl w-full max-w-xl overflow-hidden">
+      <div class="p-3 border-b border-[#3c3c3c] flex items-center justify-between">
+        <h3 id="modal-title" class="text-sm font-semibold text-white flex items-center">
+          <i class="fa-solid fa-terminal mr-2 text-[#007acc]"></i>Command Palette
+        </h3>
+        <button id="btn-close-modal" class="text-[#888888] hover:text-white px-2 py-0.5 rounded">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div id="modal-body" class="p-4 max-h-[70vh] overflow-y-auto">
+        <!-- Dynamic Modal Content -->
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLICATION JAVASCRIPT ENGINE -->
+  <script>
+    /*************************************************************************
+     * 1. VS CODE INTELLISENSE KNOWLEDGE BASE (ES2024 + DOM + SNIPPETS)
+     *************************************************************************/
+    const GLOBAL_COMPLETIONS = [
+      // Global Objects & Namespaces
+      { label: 'console', kind: 'module', insertText: 'console', detail: 'Console API', doc: 'Provides access to the debugging console (log, table, warn, error, time).', example: 'console.log("Hello World");' },
+      { label: 'Math', kind: 'module', insertText: 'Math', detail: 'Math Namespace', doc: 'Built-in object that has properties and methods for mathematical constants and functions.', example: 'Math.max(10, 20);' },
+      { label: 'JSON', kind: 'module', insertText: 'JSON', detail: 'JSON Namespace', doc: 'Contains methods for parsing JSON and converting values to JSON.', example: 'JSON.stringify({ a: 1 }, null, 2);' },
+      { label: 'Promise', kind: 'class', insertText: 'Promise', detail: 'Promise Constructor', doc: 'Represents the eventual completion (or failure) of an asynchronous operation.', example: 'new Promise((resolve) => resolve(42));' },
+      { label: 'Object', kind: 'class', insertText: 'Object', detail: 'Object Constructor', doc: 'Provides methods for working with JavaScript objects (keys, values, entries, assign).', example: 'Object.entries(user);' },
+      { label: 'Array', kind: 'class', insertText: 'Array', detail: 'Array Constructor', doc: 'Global object used in the construction of arrays; includes Array.from() and Array.isArray().', example: 'Array.from({ length: 5 }, (_, i) => i);' },
+      { label: 'String', kind: 'class', insertText: 'String', detail: 'String Constructor', doc: 'Used to represent and manipulate a sequence of characters.', example: 'String(123);' },
+      { label: 'Number', kind: 'class', insertText: 'Number', detail: 'Number Constructor', doc: 'Contains constants and methods for working with numbers.', example: 'Number.isInteger(42);' },
+      { label: 'Date', kind: 'class', insertText: 'Date', detail: 'Date Constructor', doc: 'Creates a JavaScript Date instance that represents a single moment in time.', example: 'new Date().toISOString();' },
+      { label: 'Map', kind: 'class', insertText: 'Map', detail: 'Map<K, V> Collection', doc: 'Holds key-value pairs and remembers the original insertion order of the keys.', example: 'const map = new Map(); map.set("key", 100);' },
+      { label: 'Set', kind: 'class', insertText: 'Set', detail: 'Set<T> Collection', doc: 'Lets you store unique values of any type, whether primitive values or object references.', example: 'const unique = [...new Set([1, 2, 2, 3])];' },
+      { label: 'Intl', kind: 'module', insertText: 'Intl', detail: 'Internationalization API', doc: 'Namespace for the ECMAScript Internationalization API (number/date formatting).', example: 'new Intl.NumberFormat("en-US").format(123456);' },
+      { label: 'document', kind: 'module', insertText: 'document', detail: 'DOM Document', doc: 'Represents the web page loaded in the browser and serves as an entry point into the DOM.', example: 'document.getElementById("sandbox-app");' },
+      { label: 'window', kind: 'module', insertText: 'window', detail: 'Global Window', doc: 'Represents a window containing a DOM document and global browser APIs.', example: 'window.innerWidth;' },
+      { label: 'localStorage', kind: 'module', insertText: 'localStorage', detail: 'Web Storage API', doc: 'Allows you to save key/value pairs in the browser.', example: 'localStorage.setItem("theme", "dark");' },
+      { label: 'crypto', kind: 'module', insertText: 'crypto', detail: 'Web Crypto API', doc: 'Provides cryptographic primitives including randomUUID().', example: 'crypto.randomUUID();' },
+
+      // Global Functions
+      { label: 'fetch', kind: 'function', insertText: 'fetch(', detail: 'fetch(url, options?): Promise<Response>', doc: 'Starts the process of fetching a resource from the network, returning a Promise.', example: 'const res = await fetch("https://api.example.com");' },
+      { label: 'setTimeout', kind: 'function', insertText: 'setTimeout(', detail: 'setTimeout(handler: Function, timeout?: number): number', doc: 'Sets a timer which executes a function or specified piece of code once the timer expires.', example: 'setTimeout(() => console.log("Done!"), 500);' },
+      { label: 'setInterval', kind: 'function', insertText: 'setInterval(', detail: 'setInterval(handler: Function, timeout?: number): number', doc: 'Repeatedly calls a function with a fixed time delay between each call.', example: 'const id = setInterval(tick, 1000);' },
+      { label: 'clearTimeout', kind: 'function', insertText: 'clearTimeout(', detail: 'clearTimeout(id: number): void', doc: 'Cancels a timeout previously established by calling setTimeout().', example: 'clearTimeout(timerId);' },
+      { label: 'clearInterval', kind: 'function', insertText: 'clearInterval(', detail: 'clearInterval(id: number): void', doc: 'Cancels a timed, repeating action which was previously established by a call to setInterval().', example: 'clearInterval(intervalId);' },
+      { label: 'parseInt', kind: 'function', insertText: 'parseInt(', detail: 'parseInt(string: string, radix?: number): number', doc: 'Parses a string argument and returns an integer of the specified radix.', example: 'parseInt("42px", 10);' },
+      { label: 'parseFloat', kind: 'function', insertText: 'parseFloat(', detail: 'parseFloat(string: string): number', doc: 'Parses an argument and returns a floating point number.', example: 'parseFloat("3.14159");' },
+      { label: 'structuredClone', kind: 'function', insertText: 'structuredClone(', detail: 'structuredClone(value: any): any', doc: 'Creates a deep clone of a given value using the structured clone algorithm.', example: 'const copy = structuredClone(originalObject);' },
+      { label: 'requestAnimationFrame', kind: 'function', insertText: 'requestAnimationFrame(', detail: 'requestAnimationFrame(callback: FrameRequestCallback): number', doc: 'Tells the browser that you wish to perform an animation before the next repaint.', example: 'requestAnimationFrame(drawLoop);' },
+
+      // Keywords
+      { label: 'const', kind: 'keyword', insertText: 'const ', detail: 'Block-scoped constant declaration', doc: 'Declares a block-scoped, immutable constant reference.', example: 'const MAX_ITEMS = 100;' },
+      { label: 'let', kind: 'keyword', insertText: 'let ', detail: 'Block-scoped variable declaration', doc: 'Declares a re-assignable, block-scoped local variable.', example: 'let count = 0;' },
+      { label: 'function', kind: 'keyword', insertText: 'function ', detail: 'Function declaration', doc: 'Defines a function with the specified parameters.', example: 'function greet(name) {\n  return `Hello, ${name}!`;\n}' },
+      { label: 'async', kind: 'keyword', insertText: 'async ', detail: 'Async function modifier', doc: 'Defines an asynchronous function that implicitly returns a Promise.', example: 'async function loadData() {}' },
+      { label: 'await', kind: 'keyword', insertText: 'await ', detail: 'Pause async execution until Promise settles', doc: 'Waits for a Promise and returns its fulfilled value inside an async function.', example: 'const result = await promise;' },
+      { label: 'return', kind: 'keyword', insertText: 'return ', detail: 'Return value from function', doc: 'Ends function execution and specifies a value to be returned to the function caller.', example: 'return total * 1.18;' },
+      { label: 'class', kind: 'keyword', insertText: 'class ', detail: 'ES6 Class declaration', doc: 'Creates a new class with a constructor and methods.', example: 'class Player {\n  constructor(name) {\n    this.name = name;\n  }\n}' },
+      { label: 'try', kind: 'keyword', insertText: 'try {\n  \n} catch (error) {\n  console.error(error);\n}', detail: 'Try / Catch block', doc: 'Marks a block of statements to try and specifies a response should an exception be thrown.', example: 'try { JSON.parse(str); } catch (err) {}' },
+      { label: 'switch', kind: 'keyword', insertText: 'switch (key) {\n  case value:\n    break;\n  default:\n    break;\n}', detail: 'Switch statement', doc: 'Evaluates an expression, matching the expression\'s value against a series of case clauses.', example: 'switch (status) { case 200: break; }' },
+      { label: 'typeof', kind: 'keyword', insertText: 'typeof ', detail: 'Type query operator', doc: 'Returns a string indicating the type of the operand\'s value.', example: 'typeof value === "string"' },
+      { label: 'instanceof', kind: 'keyword', insertText: 'instanceof ', detail: 'Prototype check operator', doc: 'Tests to see if the prototype property of a constructor appears anywhere in the prototype chain of an object.', example: 'item instanceof Array' },
+
+      // VS Code Famous Snippets
+      { label: 'clg', kind: 'snippet', insertText: 'console.log($END$);', detail: 'Snippet: console.log()', doc: 'VS Code shortcut snippet to quickly log output to the console.', example: 'console.log(value);' },
+      { label: 'ctb', kind: 'snippet', insertText: 'console.table($END$);', detail: 'Snippet: console.table()', doc: 'Displays tabular data as a formatted interactive table in the console.', example: 'console.table(users);' },
+      { label: 'forof', kind: 'snippet', insertText: 'for (const item of $END$) {\n  \n}', detail: 'Snippet: for..of loop', doc: 'Iterates over iterable objects (including Array, Map, Set, String).', example: 'for (const item of items) {\n  console.log(item);\n}' },
+      { label: 'fori', kind: 'snippet', insertText: 'for (let i = 0; i < $END$.length; i++) {\n  const element = $END$[i];\n}', detail: 'Snippet: indexed for loop', doc: 'Classic indexed C-style for loop over an array.', example: 'for (let i = 0; i < arr.length; i++) {}' },
+      { label: 'afn', kind: 'snippet', insertText: 'const $END$ = (params) => {\n  \n};', detail: 'Snippet: Arrow Function', doc: 'Creates a named ES6 arrow function assigned to a const.', example: 'const sum = (a, b) => a + b;' },
+      { label: 'iife', kind: 'snippet', insertText: '(() => {\n  $END$\n})();', detail: 'Snippet: Immediately Invoked Function Expression', doc: 'Executes an isolated scope function immediately upon definition.', example: '(() => { console.log("Init"); })();' },
+      { label: 'prom', kind: 'snippet', insertText: 'new Promise((resolve, reject) => {\n  $END$\n});', detail: 'Snippet: New Promise', doc: 'Creates a new Promise wrapper with resolve and reject callbacks.', example: 'new Promise((resolve) => setTimeout(resolve, 100));' },
+      { label: 'fetchjson', kind: 'snippet', insertText: 'async function fetchData(url) {\n  try {\n    const res = await fetch(url);\n    const data = await res.json();\n    console.log(data);\n    return data;\n  } catch (err) {\n    console.error("Fetch error:", err);\n  }\n}', detail: 'Snippet: Async Fetch JSON', doc: 'Complete async/await fetch wrapper with error handling.', example: 'await fetchData("https://...");' },
+      { label: 'timer', kind: 'snippet', insertText: 'console.time("benchmark");\n$END$\nconsole.timeEnd("benchmark");', detail: 'Snippet: Benchmark Execution Time', doc: 'Measures the elapsed execution time between time() and timeEnd().', example: 'console.time("benchmark");' }
+    ];
+
+    // Member Completions after `.` (Typed & Namespace Aware)
+    const MEMBER_COMPLETIONS = {
+      console: [
+        { label: 'log', kind: 'method', insertText: 'log($END$)', detail: '(method) console.log(...data: any[]): void', doc: 'Prints general output to the console with expandable object inspection.', example: 'console.log("User:", user);' },
+        { label: 'table', kind: 'method', insertText: 'table($END$)', detail: '(method) console.table(tabularData: any): void', doc: 'Renders arrays or objects as an interactive formatted table in the Console.', example: 'console.table([{ id: 1, name: "Ada" }]);' },
+        { label: 'warn', kind: 'method', insertText: 'warn($END$)', detail: '(method) console.warn(...data: any[]): void', doc: 'Outputs a yellow warning message to the console.', example: 'console.warn("Deprecated API");' },
+        { label: 'error', kind: 'method', insertText: 'error($END$)', detail: '(method) console.error(...data: any[]): void', doc: 'Outputs a red error message to the console.', example: 'console.error("Failed to connect");' },
+        { label: 'info', kind: 'method', insertText: 'info($END$)', detail: '(method) console.info(...data: any[]): void', doc: 'Informative logging of information to the console.', example: 'console.info("Server started");' },
+        { label: 'time', kind: 'method', insertText: 'time("$END$")', detail: '(method) console.time(label?: string): void', doc: 'Starts a high-resolution timer you can use to track how long an operation takes.', example: 'console.time("sort");' },
+        { label: 'timeEnd', kind: 'method', insertText: 'timeEnd("$END$")', detail: '(method) console.timeEnd(label?: string): void', doc: 'Stops a timer that was previously started by calling console.time() and logs the elapsed ms.', example: 'console.timeEnd("sort");' },
+        { label: 'clear', kind: 'method', insertText: 'clear()', detail: '(method) console.clear(): void', doc: 'Clears all previous messages from the console output panel.', example: 'console.clear();' },
+        { label: 'dir', kind: 'method', insertText: 'dir($END$)', detail: '(method) console.dir(item: any): void', doc: 'Displays an interactive list of the properties of the specified JavaScript object.', example: 'console.dir(document.body);' },
+        { label: 'assert', kind: 'method', insertText: 'assert($END$, "Assertion failed")', detail: '(method) console.assert(condition: boolean, ...data: any[]): void', doc: 'Writes an error message to the console if the assertion is false.', example: 'console.assert(x > 0, "x must be positive");' }
+      ],
+      Math: [
+        { label: 'floor', kind: 'method', insertText: 'floor($END$)', detail: '(method) Math.floor(x: number): number', doc: 'Returns the largest integer less than or equal to a given number.', example: 'Math.floor(4.9); // 4' },
+        { label: 'ceil', kind: 'method', insertText: 'ceil($END$)', detail: '(method) Math.ceil(x: number): number', doc: 'Always rounds up and returns the smallest integer greater than or equal to a given number.', example: 'Math.ceil(4.1); // 5' },
+        { label: 'round', kind: 'method', insertText: 'round($END$)', detail: '(method) Math.round(x: number): number', doc: 'Returns the value of a number rounded to the nearest integer.', example: 'Math.round(4.5); // 5' },
+        { label: 'random', kind: 'method', insertText: 'random()', detail: '(method) Math.random(): number', doc: 'Returns a floating-point, pseudo-random number in the range [0, 1).', example: 'Math.floor(Math.random() * 100);' },
+        { label: 'max', kind: 'method', insertText: 'max($END$)', detail: '(method) Math.max(...values: number[]): number', doc: 'Returns the largest of the numbers given as input parameters.', example: 'Math.max(10, 50, 25); // 50' },
+        { label: 'min', kind: 'method', insertText: 'min($END$)', detail: '(method) Math.min(...values: number[]): number', doc: 'Returns the smallest of the numbers given as input parameters.', example: 'Math.min(10, 50, 25); // 10' },
+        { label: 'abs', kind: 'method', insertText: 'abs($END$)', detail: '(method) Math.abs(x: number): number', doc: 'Returns the absolute value of a number.', example: 'Math.abs(-42); // 42' },
+        { label: 'sqrt', kind: 'method', insertText: 'sqrt($END$)', detail: '(method) Math.sqrt(x: number): number', doc: 'Returns the square root of a number.', example: 'Math.sqrt(81); // 9' },
+        { label: 'pow', kind: 'method', insertText: 'pow($END$, 2)', detail: '(method) Math.pow(base: number, exponent: number): number', doc: 'Returns the value of a base raised to a power.', example: 'Math.pow(2, 8); // 256' },
+        { label: 'sin', kind: 'method', insertText: 'sin($END$)', detail: '(method) Math.sin(x: number): number', doc: 'Returns the sine of a number in radians.', example: 'Math.sin(Math.PI / 2);' },
+        { label: 'cos', kind: 'method', insertText: 'cos($END$)', detail: '(method) Math.cos(x: number): number', doc: 'Returns the cosine of a number in radians.', example: 'Math.cos(0);' },
+        { label: 'PI', kind: 'property', insertText: 'PI', detail: '(property) Math.PI: number = 3.141592653589793', doc: 'Represents the ratio of the circumference of a circle to its diameter.', example: 'const circumference = 2 * Math.PI * r;' }
+      ],
+      JSON: [
+        { label: 'stringify', kind: 'method', insertText: 'stringify($END$, null, 2)', detail: '(method) JSON.stringify(value: any, replacer?: any, space?: number): string', doc: 'Converts a JavaScript value to a JSON string.', example: 'JSON.stringify(data, null, 2);' },
+        { label: 'parse', kind: 'method', insertText: 'parse($END$)', detail: '(method) JSON.parse(text: string): any', doc: 'Parses a JSON string, constructing the JavaScript value or object described by the string.', example: 'const obj = JSON.parse(\'{"ok":true}\');' }
+      ],
+      Object: [
+        { label: 'keys', kind: 'method', insertText: 'keys($END$)', detail: '(method) Object.keys(o: object): string[]', doc: 'Returns an array of a given object\'s own enumerable string-keyed property names.', example: 'Object.keys(user);' },
+        { label: 'values', kind: 'method', insertText: 'values($END$)', detail: '(method) Object.values(o: object): any[]', doc: 'Returns an array of a given object\'s own enumerable string-keyed property values.', example: 'Object.values(scores);' },
+        { label: 'entries', kind: 'method', insertText: 'entries($END$)', detail: '(method) Object.entries(o: object): [string, any][]', doc: 'Returns an array of a given object\'s own enumerable string-keyed property [key, value] pairs.', example: 'for (const [k, v] of Object.entries(obj)) {}' },
+        { label: 'fromEntries', kind: 'method', insertText: 'fromEntries($END$)', detail: '(method) Object.fromEntries(entries: Iterable): any', doc: 'Transforms a list of key-value pairs into an object.', example: 'Object.fromEntries([["a", 1], ["b", 2]]);' },
+        { label: 'assign', kind: 'method', insertText: 'assign({}, $END$)', detail: '(method) Object.assign(target: object, ...sources: any[]): any', doc: 'Copies all enumerable own properties from one or more source objects to a target object.', example: 'Object.assign({}, defaults, options);' },
+        { label: 'freeze', kind: 'method', insertText: 'freeze($END$)', detail: '(method) Object.freeze<T>(o: T): Readonly<T>', doc: 'Freezes an object so that properties cannot be added, removed, or changed.', example: 'Object.freeze(CONFIG);' },
+        { label: 'groupBy', kind: 'method', insertText: 'groupBy($END$, item => item.category)', detail: '(method) Object.groupBy(items: Iterable, callbackFn): Object', doc: 'ES2024 method that groups elements of an iterable according to the string values returned by a callback.', example: 'Object.groupBy(inventory, ({ type }) => type);' }
+      ],
+      ArrayStatic: [
+        { label: 'isArray', kind: 'method', insertText: 'isArray($END$)', detail: '(method) Array.isArray(arg: any): boolean', doc: 'Determines whether the passed value is an Array.', example: 'Array.isArray([1, 2, 3]); // true' },
+        { label: 'from', kind: 'method', insertText: 'from($END$)', detail: '(method) Array.from(arrayLike, mapFn?): any[]', doc: 'Creates a new, shallow-copied Array instance from an iterable or array-like object.', example: 'Array.from({ length: 5 }, (_, i) => i + 1);' }
+      ],
+      Array: [
+        { label: 'map', kind: 'method', insertText: 'map(item => $END$)', detail: '(method) Array<T>.map<U>(callbackfn: (value: T, index: number) => U): U[]', doc: 'Creates a new array populated with the results of calling a provided function on every element.', example: 'const doubled = nums.map(n => n * 2);' },
+        { label: 'filter', kind: 'method', insertText: 'filter(item => $END$)', detail: '(method) Array<T>.filter(predicate: (value: T, index: number) => boolean): T[]', doc: 'Creates a shallow copy of a portion of a given array, filtered down to elements that pass the test.', example: 'const active = users.filter(u => u.isActive);' },
+        { label: 'reduce', kind: 'method', insertText: 'reduce((acc, item) => $END$, 0)', detail: '(method) Array<T>.reduce(callbackfn: (previousValue: U, currentValue: T) => U, initialValue: U): U', doc: 'Executes a user-supplied reducer callback function on each element of the array, resulting in a single value.', example: 'const sum = prices.reduce((acc, n) => acc + n, 0);' },
+        { label: 'forEach', kind: 'method', insertText: 'forEach(item => {\n  $END$\n})', detail: '(method) Array<T>.forEach(callbackfn: (value: T, index: number) => void): void', doc: 'Executes a provided function once for each array element.', example: 'items.forEach(item => console.log(item));' },
+        { label: 'find', kind: 'method', insertText: 'find(item => $END$)', detail: '(method) Array<T>.find(predicate: (value: T) => boolean): T | undefined', doc: 'Returns the first element in the provided array that satisfies the provided testing function.', example: 'const admin = users.find(u => u.role === "admin");' },
+        { label: 'findIndex', kind: 'method', insertText: 'findIndex(item => $END$)', detail: '(method) Array<T>.findIndex(predicate: (value: T) => boolean): number', doc: 'Returns the index of the first element in an array that satisfies the testing function, or -1.', example: 'const idx = items.findIndex(x => x.id === 5);' },
+        { label: 'some', kind: 'method', insertText: 'some(item => $END$)', detail: '(method) Array<T>.some(predicate: (value: T) => boolean): boolean', doc: 'Tests whether at least one element in the array passes the test implemented by the provided function.', example: 'const hasError = logs.some(l => l.level === "error");' },
+        { label: 'every', kind: 'method', insertText: 'every(item => $END$)', detail: '(method) Array<T>.every(predicate: (value: T) => boolean): boolean', doc: 'Tests whether all elements in the array pass the test implemented by the provided function.', example: 'const allValid = inputs.every(x => x.length > 0);' },
+        { label: 'includes', kind: 'method', insertText: 'includes($END$)', detail: '(method) Array<T>.includes(searchElement: T): boolean', doc: 'Determines whether an array includes a certain value among its entries.', example: 'tags.includes("javascript");' },
+        { label: 'push', kind: 'method', insertText: 'push($END$)', detail: '(method) Array<T>.push(...items: T[]): number', doc: 'Adds the specified elements to the end of an array and returns the new length of the array.', example: 'cart.push(newItem);' },
+        { label: 'pop', kind: 'method', insertText: 'pop()', detail: '(method) Array<T>.pop(): T | undefined', doc: 'Removes the last element from an array and returns that element.', example: 'const last = stack.pop();' },
+        { label: 'slice', kind: 'method', insertText: 'slice($END$)', detail: '(method) Array<T>.slice(start?: number, end?: number): T[]', doc: 'Returns a shallow copy of a portion of an array into a new array object.', example: 'const top3 = scores.slice(0, 3);' },
+        { label: 'splice', kind: 'method', insertText: 'splice($END$, 1)', detail: '(method) Array<T>.splice(start: number, deleteCount?: number, ...items: T[]): T[]', doc: 'Changes the contents of an array by removing or replacing existing elements and/or adding new elements.', example: 'arr.splice(index, 1);' },
+        { label: 'sort', kind: 'method', insertText: 'sort((a, b) => a - b)', detail: '(method) Array<T>.sort(compareFn?: (a: T, b: T) => number): this', doc: 'Sorts the elements of an array in place and returns the reference to the same array.', example: 'numbers.sort((a, b) => a - b);' },
+        { label: 'toSorted', kind: 'method', insertText: 'toSorted((a, b) => a - b)', detail: '(method) Array<T>.toSorted(compareFn?): T[] (ES2023 Immutable)', doc: 'Copying version of sort(). Returns a new array with the elements sorted in ascending order.', example: 'const sorted = scores.toSorted((a, b) => b - a);' },
+        { label: 'join', kind: 'method', insertText: 'join(", ")', detail: '(method) Array<T>.join(separator?: string): string', doc: 'Creates and returns a new string by concatenating all of the elements in an array.', example: 'words.join(" ");' },
+        { label: 'flat', kind: 'method', insertText: 'flat($END$)', detail: '(method) Array<T>.flat(depth?: number): any[]', doc: 'Creates a new array with all sub-array elements concatenated into it recursively up to the specified depth.', example: 'nested.flat(Infinity);' },
+        { label: 'at', kind: 'method', insertText: 'at(-1)', detail: '(method) Array<T>.at(index: number): T | undefined', doc: 'Takes an integer value and returns the item at that index, allowing negative integers to count back from the last item.', example: 'const lastItem = list.at(-1);' },
+        { label: 'length', kind: 'property', insertText: 'length', detail: '(property) Array<T>.length: number', doc: 'Gets or sets the number of elements in the array.', example: 'items.length;' }
+      ],
+      String: [
+        { label: 'includes', kind: 'method', insertText: 'includes("$END$")', detail: '(method) String.includes(searchString: string): boolean', doc: 'Performs a case-sensitive search to determine whether a given string may be found within this string.', example: 'title.includes("JS");' },
+        { label: 'startsWith', kind: 'method', insertText: 'startsWith("$END$")', detail: '(method) String.startsWith(searchString: string): boolean', doc: 'Determines whether this string begins with the characters of a specified string.', example: 'url.startsWith("https://");' },
+        { label: 'endsWith', kind: 'method', insertText: 'endsWith("$END$")', detail: '(method) String.endsWith(searchString: string): boolean', doc: 'Determines whether a string ends with the characters of this string.', example: 'filename.endsWith(".js");' },
+        { label: 'split', kind: 'method', insertText: 'split("$END$")', detail: '(method) String.split(separator: string | RegExp): string[]', doc: 'Divides a String into an ordered list of substrings, puts these substrings into an array, and returns the array.', example: 'csv.split(",");' },
+        { label: 'replace', kind: 'method', insertText: 'replace("$END$", "")', detail: '(method) String.replace(searchValue: string | RegExp, replaceValue: string): string', doc: 'Returns a new string with one, some, or all matches of a pattern replaced by a replacement.', example: 'str.replace("old", "new");' },
+        { label: 'replaceAll', kind: 'method', insertText: 'replaceAll("$END$", "")', detail: '(method) String.replaceAll(searchValue: string | RegExp, replaceValue: string): string', doc: 'Returns a new string with all matches of a pattern replaced by a replacement.', example: 'text.replaceAll("-", "_");' },
+        { label: 'toLowerCase', kind: 'method', insertText: 'toLowerCase()', detail: '(method) String.toLowerCase(): string', doc: 'Returns the calling string value converted to lower case.', example: 'input.toLowerCase();' },
+        { label: 'toUpperCase', kind: 'method', insertText: 'toUpperCase()', detail: '(method) String.toUpperCase(): string', doc: 'Returns the calling string value converted to uppercase.', example: 'code.toUpperCase();' },
+        { label: 'trim', kind: 'method', insertText: 'trim()', detail: '(method) String.trim(): string', doc: 'Removes whitespace from both ends of a string and returns a new string.', example: 'rawInput.trim();' },
+        { label: 'slice', kind: 'method', insertText: 'slice(0, $END$)', detail: '(method) String.slice(indexStart: number, indexEnd?: number): string', doc: 'Extracts a section of a string and returns it as a new string, without modifying the original string.', example: 'str.slice(0, 10);' },
+        { label: 'padStart', kind: 'method', insertText: 'padStart(2, "0")', detail: '(method) String.padStart(maxLength: number, fillString?: string): string', doc: 'Pads the current string with another string from the start until the resulting string reaches the given length.', example: '"5".padStart(2, "0"); // "05"' },
+        { label: 'match', kind: 'method', insertText: 'match(/$END$/g)', detail: '(method) String.match(matcher: RegExp): RegExpMatchArray | null', doc: 'Retrieves the result of matching a string against a regular expression.', example: 'text.match(/\\d+/g);' },
+        { label: 'length', kind: 'property', insertText: 'length', detail: '(property) String.length: number', doc: 'Returns the length of the string in UTF-16 code units.', example: 'name.length;' }
+      ],
+      Promise: [
+        { label: 'then', kind: 'method', insertText: 'then(result => {\n  $END$\n})', detail: '(method) Promise<T>.then(onfulfilled): Promise', doc: 'Attaches callbacks for the resolution and/or rejection of the Promise.', example: 'fetchData().then(data => console.log(data));' },
+        { label: 'catch', kind: 'method', insertText: 'catch(err => console.error(err))', detail: '(method) Promise<T>.catch(onrejected): Promise', doc: 'Attaches a callback for only the rejection of the Promise.', example: 'promise.catch(err => console.error(err));' },
+        { label: 'finally', kind: 'method', insertText: 'finally(() => {\n  $END$\n})', detail: '(method) Promise<T>.finally(onfinally): Promise', doc: 'Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected).', example: 'promise.finally(() => setLoading(false));' },
+        { label: 'all', kind: 'method', insertText: 'all([$END$])', detail: '(method) Promise.all(values: Iterable): Promise<any[]>', doc: 'Takes an iterable of promises and returns a single Promise that resolves when all input promises resolve.', example: 'await Promise.all([p1, p2]);' },
+        { label: 'allSettled', kind: 'method', insertText: 'allSettled([$END$])', detail: '(method) Promise.allSettled(values: Iterable): Promise', doc: 'Returns a promise that resolves after all of the given promises have either fulfilled or rejected.', example: 'await Promise.allSettled([p1, p2]);' }
+      ],
+      Map: [
+        { label: 'set', kind: 'method', insertText: 'set($END$, value)', detail: '(method) Map<K, V>.set(key: K, value: V): this', doc: 'Adds or updates an element with a specified key and a value to a Map object.', example: 'map.set("id", 101);' },
+        { label: 'get', kind: 'method', insertText: 'get($END$)', detail: '(method) Map<K, V>.get(key: K): V | undefined', doc: 'Returns a specified element from a Map object.', example: 'map.get("id");' },
+        { label: 'has', kind: 'method', insertText: 'has($END$)', detail: '(method) Map<K, V>.has(key: K): boolean', doc: 'Returns a boolean indicating whether an element with the specified key exists or not.', example: 'map.has("id");' },
+        { label: 'delete', kind: 'method', insertText: 'delete($END$)', detail: '(method) Map<K, V>.delete(key: K): boolean', doc: 'Removes the specified element from a Map object by key.', example: 'map.delete("id");' },
+        { label: 'size', kind: 'property', insertText: 'size', detail: '(property) Map<K, V>.size: number', doc: 'Returns the number of elements in a Map object.', example: 'map.size;' }
+      ],
+      Set: [
+        { label: 'add', kind: 'method', insertText: 'add($END$)', detail: '(method) Set<T>.add(value: T): this', doc: 'Inserts a new element with a specified value in to a Set object, if there isn\'t an element with the same value already.', example: 'set.add("admin");' },
+        { label: 'has', kind: 'method', insertText: 'has($END$)', detail: '(method) Set<T>.has(value: T): boolean', doc: 'Returns a boolean indicating whether an element with the specified value exists in a Set object.', example: 'set.has("admin");' },
+        { label: 'delete', kind: 'method', insertText: 'delete($END$)', detail: '(method) Set<T>.delete(value: T): boolean', doc: 'Removes a specified value from a Set object.', example: 'set.delete("admin");' },
+        { label: 'size', kind: 'property', insertText: 'size', detail: '(property) Set<T>.size: number', doc: 'Returns the number of unique elements in a Set object.', example: 'set.size;' }
+      ],
+      document: [
+        { label: 'getElementById', kind: 'method', insertText: 'getElementById("sandbox-app")', detail: '(method) Document.getElementById(elementId: string): HTMLElement | null', doc: 'Returns an Element object representing the element whose id property matches the specified string.', example: 'const el = document.getElementById("sandbox-app");' },
+        { label: 'querySelector', kind: 'method', insertText: 'querySelector("$END$")', detail: '(method) Document.querySelector(selectors: string): Element | null', doc: 'Returns the first Element within the document that matches the specified selector.', example: 'document.querySelector("#sandbox-app");' },
+        { label: 'createElement', kind: 'method', insertText: 'createElement("$END$")', detail: '(method) Document.createElement(tagName: string): HTMLElement', doc: 'Creates the HTML element specified by tagName.', example: 'const btn = document.createElement("button");' }
+      ],
+      HTMLElement: [
+        { label: 'innerHTML', kind: 'property', insertText: 'innerHTML = `$END$`', detail: '(property) Element.innerHTML: string', doc: 'Gets or sets the HTML markup contained within the element.', example: 'app.innerHTML = "<h2>Hello!</h2>";' },
+        { label: 'textContent', kind: 'property', insertText: 'textContent = "$END$"', detail: '(property) Node.textContent: string', doc: 'Represents the text content of the node and its descendants.', example: 'el.textContent = "Updated";' },
+        { label: 'style', kind: 'property', insertText: 'style.', detail: '(property) HTMLElement.style: CSSStyleDeclaration', doc: 'Returns the inline style of an element.', example: 'el.style.color = "#4ec9b0";' },
+        { label: 'appendChild', kind: 'method', insertText: 'appendChild($END$)', detail: '(method) Node.appendChild(node: Node): Node', doc: 'Adds a node to the end of the list of children of a specified parent node.', example: 'app.appendChild(card);' },
+        { label: 'addEventListener', kind: 'method', insertText: 'addEventListener("click", (e) => {\n  $END$\n})', detail: '(method) EventTarget.addEventListener(type: string, listener: Function): void', doc: 'Sets up a function that will be called whenever the specified event is delivered to the target.', example: 'btn.addEventListener("click", () => console.log("Clicked!"));' },
+        { label: 'getContext', kind: 'method', insertText: 'getContext("2d")', detail: '(method) HTMLCanvasElement.getContext("2d"): CanvasRenderingContext2D', doc: 'Returns a 2D drawing context on the canvas.', example: 'const ctx = canvas.getContext("2d");' }
+      ],
+      Canvas2D: [
+        { label: 'fillStyle', kind: 'property', insertText: 'fillStyle = "#4ec9b0"', detail: '(property) CanvasRenderingContext2D.fillStyle: string', doc: 'Specifies the color, gradient, or pattern to use inside shapes.', example: 'ctx.fillStyle = "#007acc";' },
+        { label: 'strokeStyle', kind: 'property', insertText: 'strokeStyle = "#dcdcaa"', detail: '(property) CanvasRenderingContext2D.strokeStyle: string', doc: 'Specifies the color, gradient, or pattern to use for the strokes (outlines) around shapes.', example: 'ctx.strokeStyle = "#ffffff";' },
+        { label: 'fillRect', kind: 'method', insertText: 'fillRect(x, y, width, height)', detail: '(method) ctx.fillRect(x: number, y: number, w: number, h: number): void', doc: 'Draws a rectangle that is filled according to the current fillStyle.', example: 'ctx.fillRect(20, 20, 150, 100);' },
+        { label: 'clearRect', kind: 'method', insertText: 'clearRect(0, 0, canvas.width, canvas.height)', detail: '(method) ctx.clearRect(x: number, y: number, w: number, h: number): void', doc: 'Erases the pixels in a rectangular area by setting them to transparent black.', example: 'ctx.clearRect(0, 0, 500, 260);' },
+        { label: 'beginPath', kind: 'method', insertText: 'beginPath()', detail: '(method) ctx.beginPath(): void', doc: 'Starts a new path by emptying the list of sub-paths.', example: 'ctx.beginPath();' },
+        { label: 'arc', kind: 'method', insertText: 'arc(x, y, radius, 0, Math.PI * 2)', detail: '(method) ctx.arc(x: number, y: number, radius: number, startAngle: number, endAngle: number): void', doc: 'Adds a circular arc to the current sub-path.', example: 'ctx.arc(100, 100, 40, 0, Math.PI * 2);' },
+        { label: 'fill', kind: 'method', insertText: 'fill()', detail: '(method) ctx.fill(): void', doc: 'Fills the current or given path with the current fillStyle.', example: 'ctx.fill();' },
+        { label: 'stroke', kind: 'method', insertText: 'stroke()', detail: '(method) ctx.stroke(): void', doc: 'Strokes (outlines) the current or given path with the current strokeStyle.', example: 'ctx.stroke();' }
+      ]
+    };
+
+    // Parameter Signatures for Floating Signature Help (`(` trigger)
+    const SIGNATURE_SIGNATURES = {
+      'log': { sig: 'console.log(...data: any[]): void', doc: 'Outputs messages or objects to the interactive Console.' },
+      'table': { sig: 'console.table(tabularData: Array | Object, properties?: string[]): void', doc: 'Displays an array or object as an interactive HTML table.' },
+      'slice': { sig: 'slice(start?: number, end?: number): Array | string', doc: 'Extracts a section from `start` index up to (but not including) `end` index.' },
+      'splice': { sig: 'splice(start: number, deleteCount?: number, ...items: T[]): T[]', doc: 'Removes `deleteCount` elements starting at `start` and inserts `items`.' },
+      'map': { sig: 'map(callbackFn: (element, index, array) => any): Array', doc: 'Transforms every element in the array using `callbackFn`.' },
+      'filter': { sig: 'filter(predicate: (element, index, array) => boolean): Array', doc: 'Keeps only elements where `predicate` returns truthy.' },
+      'reduce': { sig: 'reduce(callbackFn: (accumulator, currentValue, index) => any, initialValue): any', doc: 'Reduces array elements into a single accumulated value.' },
+      'setTimeout': { sig: 'setTimeout(callback: () => void, delayMs: number): number', doc: 'Schedules `callback` to run after `delayMs` milliseconds.' },
+      'fetch': { sig: 'fetch(resourceUrl: string, options?: RequestInit): Promise<Response>', doc: 'Performs an asynchronous HTTP network request.' },
+      'stringify': { sig: 'JSON.stringify(value: any, replacer?: null, space?: number): string', doc: 'Serializes a JS value into a formatted JSON string.' },
+      'fillRect': { sig: 'ctx.fillRect(x: number, y: number, width: number, height: number): void', doc: 'Draws a filled rectangle at (x, y) with given width and height.' },
+      'arc': { sig: 'ctx.arc(x: number, y: number, radius: number, startAngle: number, endAngle: number): void', doc: 'Draws a circle or arc centered at (x, y).' }
+    };
+
+    /*************************************************************************
+     * 2. STARTER WORKSPACE FILES
+     *************************************************************************/
+    const DEFAULT_FILES = {
+      'main.js': `// Welcome to CodeStudio JS!
+// Try typing below — VS Code IntelliSense & Type Inference trigger automatically.
+// Tip: Try typing "developers." or "console." or "clg" + Tab!
+
+const developers = [
+  { id: 1, name: "Ada Lovelace", role: "Architect", commits: 420, active: true },
+  { id: 2, name: "Alan Turing", role: "Cryptography", commits: 385, active: true },
+  { id: 3, name: "Grace Hopper", role: "Compilers", commits: 512, active: true },
+  { id: 4, name: "Linus Torvalds", role: "Kernel", commits: 640, active: false }
+];
+
+// Function with inferred parameters in IntelliSense
+function analyzeTeam(team, minCommits = 400) {
+  const topContributors = team
+    .filter(dev => dev.active && dev.commits >= minCommits)
+    .map(dev => ({
+      Developer: dev.name,
+      Specialty: dev.role,
+      Commits: dev.commits,
+      Badge: dev.commits > 500 ? "⭐ Legend" : "🔥 Pro"
+    }));
+
+  return topContributors;
+}
+
+console.time("Team Analysis");
+const leaderboard = analyzeTeam(developers, 380);
+console.log("🏆 Top Active Contributors Table:");
+console.table(leaderboard);
+
+const totalCommits = developers.reduce((sum, dev) => sum + dev.commits, 0);
+console.log(\`Total team commits: \${totalCommits} (Avg: \${Math.round(totalCommits / developers.length)})\`);
+console.timeEnd("Team Analysis");
+`,
+
+      'oop-classes.js': `// ES6 Classes & Custom Object IntelliSense Demo
+// Type "wallet." on a new line to see live autocomplete for custom methods!
+
+class CryptoWallet {
+  constructor(owner, initialBalance = 1000) {
+    this.owner = owner;
+    this.balance = initialBalance;
+    this.history = [];
+  }
+
+  deposit(amount, note = "Deposit") {
+    this.balance += amount;
+    this.history.push({ type: "CREDIT", amount, note, balanceAfter: this.balance });
+    return this.balance;
+  }
+
+  withdraw(amount, note = "Withdrawal") {
+    if (amount > this.balance) {
+      console.warn(\`⚠️ Insufficient funds for \${this.owner} (Requested: $\${amount})\`);
+      return false;
+    }
+    this.balance -= amount;
+    this.history.push({ type: "DEBIT", amount, note, balanceAfter: this.balance });
+    return true;
+  }
+
+  getSummary() {
+    return {
+      owner: this.owner,
+      currentBalance: \`$\${this.balance.toLocaleString()}\`,
+      transactions: this.history.length
+    };
+  }
+}
+
+const wallet = new CryptoWallet("Satoshi", 2500);
+wallet.deposit(750, "Smart Contract Reward");
+wallet.withdraw(420, "Cloud Server Hosting");
+wallet.withdraw(5000, "Overdraft Test");
+
+console.log("Wallet Summary:", wallet.getSummary());
+console.table(wallet.history);
+`,
+
+      'canvas-sandbox.js': `// Visual Sandbox Demo — Draws on the built-in HTML5 Canvas & DOM!
+// Click Run Code (Ctrl+Enter) — it will switch to the Visual Sandbox tab automatically.
+
+const app = document.getElementById("sandbox-app");
+const canvas = document.getElementById("sandbox-canvas");
+const ctx = canvas.getContext("2d");
+
+// 1. Render Interactive DOM UI inside #sandbox-app
+app.innerHTML = \`
+  <div style="display:flex; align-items:center; justify-content:space-between;">
+    <div>
+      <h3 style="font-weight:700; color:#4ec9b0; margin:0;">⚡ Live Generative Art Sandbox</h3>
+      <p style="font-size:12px; color:#aaaaaa; margin:2px 0 0 0;">Rendered directly from canvas-sandbox.js</p>
+    </div>
+    <span style="background:#007acc; color:white; padding:3px 8px; border-radius:4px; font-size:11px;">60 FPS Ready</span>
+  </div>
+\`;
+
+// 2. Draw Neon Harmonics on #sandbox-canvas
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+const colors = ["#007acc", "#4ec9b0", "#c586c0", "#dcdcaa", "#ce9178"];
+for (let i = 0; i < 36; i++) {
+  const angle = (i / 36) * Math.PI * 2;
+  const x = canvas.width / 2 + Math.cos(angle) * 75;
+  const y = canvas.height / 2 + Math.sin(angle) * 55;
+
+  ctx.beginPath();
+  ctx.arc(x, y, 36, 0, Math.PI * 2);
+  ctx.strokeStyle = colors[i % colors.length];
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+}
+
+console.log("✨ Rendered 36 geometric harmonic rings onto #sandbox-canvas!");
+`
+    };
+
+    /*************************************************************************
+     * 3. STATE MANAGEMENT
+     *************************************************************************/
+    const state = {
+      files: {},
+      activeFile: 'main.js',
+      openTabs: ['main.js', 'oop-classes.js', 'canvas-sandbox.js'],
+      userSymbols: [],          // Extracted variables, functions, classes from current code
+      objectProperties: {},     // Map of variableName -> array of custom properties/methods
+      classDefinitions: {},     // Map of className -> array of methods/properties
+      variableTypes: {},        // Map of variableName -> inferred type ('Array', 'String', etc.)
+      suggestions: [],
+      selectedSuggestionIndex: 0,
+      isSuggestOpen: false,
+      triggerReplaceStart: 0,
+      charWidth: 8.4,           // Measured dynamically on init
+      lineHeight: 22,
+      consoleCount: 0,
+      timers: {},
+      autoRunTimer: null
+    };
+
+    // Load from localStorage or use defaults
+    function loadWorkspace() {
+      try {
+        const saved = localStorage.getItem('codestudio_js_files_v1');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && Object.keys(parsed).length > 0) {
+            state.files = parsed;
+            state.openTabs = Object.keys(parsed);
+            state.activeFile = state.openTabs[0];
+            return;
+          }
+        }
+      } catch (e) {}
+      state.files = structuredClone(DEFAULT_FILES);
+      state.openTabs = Object.keys(state.files);
+      state.activeFile = 'main.js';
+    }
+
+    function saveWorkspace() {
+      try {
+        localStorage.setItem('codestudio_js_files_v1', JSON.stringify(state.files));
+      } catch (e) {}
+    }
+
+    /*************************************************************************
+     * 4. DOM ELEMENT REFERENCES
+     *************************************************************************/
+    const els = {
+      textarea: document.getElementById('code-textarea'),
+      highlightPre: document.getElementById('code-highlight-pre'),
+      highlightContent: document.getElementById('code-highlight-content'),
+      gutter: document.getElementById('line-numbers-gutter'),
+      activeLineBar: document.getElementById('active-line-bar'),
+      intellisenseWidget: document.getElementById('intellisense-widget'),
+      intellisenseList: document.getElementById('intellisense-list'),
+      intellisenseMatchCount: document.getElementById('intellisense-match-count'),
+      docKindBadge: document.getElementById('doc-kind-badge'),
+      docSourceBadge: document.getElementById('doc-source-badge'),
+      docSignature: document.getElementById('doc-signature'),
+      docDescription: document.getElementById('doc-description'),
+      docExample: document.getElementById('doc-example'),
+      docExampleBox: document.getElementById('doc-example-box'),
+      signatureWidget: document.getElementById('signature-widget'),
+      signatureLabel: document.getElementById('signature-label'),
+      signatureDoc: document.getElementById('signature-doc'),
+      tabsContainer: document.getElementById('editor-tabs-container'),
+      fileListContainer: document.getElementById('file-list-container'),
+      outlineListContainer: document.getElementById('outline-list-container'),
+      symbolCountBadge: document.getElementById('symbol-count-badge'),
+      consoleOutput: document.getElementById('console-output'),
+      consoleBadge: document.getElementById('console-badge'),
+      execTimeBadge: document.getElementById('exec-time-badge'),
+      statusCursor: document.getElementById('status-cursor'),
+      statusErrCount: document.getElementById('status-err-count'),
+      syntaxStatusPill: document.getElementById('syntax-status-pill'),
+      breadcrumbFile: document.getElementById('breadcrumb-file'),
+      breadcrumbScope: document.getElementById('breadcrumb-scope'),
+      activeFilenameTitle: document.getElementById('active-filename-title'),
+      replInput: document.getElementById('repl-input'),
+      chkAutoSuggest: document.getElementById('chk-auto-suggest'),
+      chkDotSuggest: document.getElementById('chk-dot-suggest'),
+      chkSigHelp: document.getElementById('chk-sig-help'),
+      chkAutoClose: document.getElementById('chk-auto-close'),
+      toggleAutorun: document.getElementById('toggle-autorun'),
+      panelConsoleView: document.getElementById('panel-console-view'),
+      panelSandboxView: document.getElementById('panel-sandbox-view'),
+      tabBtnConsole: document.getElementById('tab-btn-console'),
+      tabBtnSandbox: document.getElementById('tab-btn-sandbox'),
+      modalBackdrop: document.getElementById('modal-backdrop'),
+      modalTitle: document.getElementById('modal-title'),
+      modalBody: document.getElementById('modal-body')
+    };
+
+    /*************************************************************************
+     * 5. REAL-TIME JAVASCRIPT SYNTAX HIGHLIGHTER & LINTER
+     *************************************************************************/
+    const JS_KEYWORDS = new Set([
+      'const', 'let', 'var', 'function', 'class', 'extends', 'new', 'this', 'super',
+      'typeof', 'instanceof', 'in', 'of', 'void', 'delete', 'async', 'null', 'undefined'
+    ]);
+    const JS_CONTROLS = new Set([
+      'if', 'else', 'for', 'while', 'do', 'switch', 'case', 'break', 'continue',
+      'return', 'try', 'catch', 'finally', 'throw', 'await', 'yield', 'import', 'export', 'from', 'default'
+    ]);
+    const JS_BOOLEANS = new Set(['true', 'false', 'NaN', 'Infinity']);
+
+    function escapeHtml(str) {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function highlightJavaScript(code, syntaxErrorLine = -1) {
+      // Single-pass lexical tokenizer for fast, flicker-free highlighting
+      const tokenRegex = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|(`(?:\\[\s\S]|[^\\`])*`)|("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*')|\b(\d+(?:\.\d+)?(?:e[+-]?\d+)?)\b|\b([A-Za-z_$][\w$]*)\b(\s*\()?|([{}()[\].,:;])|([+\-*/%=<>!&|^~?]+)/g;
+
+      const lines = code.split('\n');
+      const highlightedLines = lines.map((line, idx) => {
+        let result = '';
+        let lastIndex = 0;
+        let match;
+
+        // Handle multi-line comments or simple line-by-line tokenization
+        tokenRegex.lastIndex = 0;
+        while ((match = tokenRegex.exec(line)) !== null) {
+          if (match.index > lastIndex) {
+            result += escapeHtml(line.slice(lastIndex, match.index));
+          }
+
+          const [full, comment, template, str, num, ident, callParen, punct, op] = match;
+
+          if (comment) {
+            result += `<span class="tok-comment">${escapeHtml(comment)}</span>`;
+          } else if (template) {
+            result += `<span class="tok-template">${escapeHtml(template)}</span>`;
+          } else if (str) {
+            result += `<span class="tok-string">${escapeHtml(str)}</span>`;
+          } else if (num) {
+            result += `<span class="tok-number">${escapeHtml(num)}</span>`;
+          } else if (ident) {
+            let cls = 'tok-variable';
+            if (JS_KEYWORDS.has(ident)) cls = 'tok-keyword';
+            else if (JS_CONTROLS.has(ident)) cls = 'tok-control';
+            else if (JS_BOOLEANS.has(ident)) cls = 'tok-boolean';
+            else if (/^[A-Z]/.test(ident)) cls = 'tok-class';
+            else if (callParen) cls = 'tok-function';
+
+            result += `<span class="${cls}">${escapeHtml(ident)}</span>`;
+            if (callParen) {
+              result += escapeHtml(callParen);
+            }
+          } else if (punct) {
+            result += `<span class="tok-punctuation">${escapeHtml(punct)}</span>`;
+          } else if (op) {
+            result += `<span class="tok-operator">${escapeHtml(op)}</span>`;
+          } else {
+            result += escapeHtml(full);
+          }
+
+          lastIndex = tokenRegex.lastIndex;
+        }
+
+        if (lastIndex < line.length) {
+          result += escapeHtml(line.slice(lastIndex));
+        }
+
+        if (idx + 1 === syntaxErrorLine) {
+          return `<span class="error-line-bg">${result || ' '}</span>`;
+        }
+        return result;
+      });
+
+      return highlightedLines.join('\n') + '\n';
+    }
+
+    // Live Non-Executing Syntax Validation
+    function checkSyntax(code) {
+      try {
+        // Use AsyncFunction constructor to allow top-level await in syntax check
+        const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+        new AsyncFunction(code);
+        els.syntaxStatusPill.innerHTML = `<i class="fa-solid fa-check-circle text-[10px]"></i><span>Syntax Valid</span>`;
+        els.syntaxStatusPill.className = 'text-[11px] px-2 py-0.5 rounded bg-[#1e1e1e] text-[#4ec9b0] flex items-center space-x-1 border border-[#333333]';
+        els.statusErrCount.textContent = '0';
+        return { valid: true, line: -1 };
+      } catch (err) {
+        els.syntaxStatusPill.innerHTML = `<i class="fa-solid fa-circle-exclamation text-[10px]"></i><span class="truncate max-w-[180px]">${escapeHtml(err.message)}</span>`;
+        els.syntaxStatusPill.className = 'text-[11px] px-2 py-0.5 rounded bg-[#3a1d1d] text-[#f48771] flex items-center space-x-1 border border-[#6b2929]';
+        els.statusErrCount.textContent = '1';
+        return { valid: false, message: err.message, line: -1 };
+      }
+    }
+
+    /*************************************************************************
+     * 6. LIVE AST / SYMBOL & TYPE INFERENCE ENGINE
+     *************************************************************************/
+    function analyzeCodeSymbols(code) {
+      const symbols = [];
+      const seen = new Set();
+      const varTypes = {};
+      const objProps = {};
+      const classDefs = {};
+
+      // 1. Parse Classes and their Methods/Properties
+      const classRegex = /class\s+([A-Za-z_$][\w$]*)\s*(?:extends\s+[A-Za-z_$][\w$]*)?\s*\{([\s\S]*?)\n\}/g;
+      let match;
+      while ((match = classRegex.exec(code)) !== null) {
+        const className = match[1];
+        const classBody = match[2];
+        if (!seen.has(className)) {
+          seen.add(className);
+          symbols.push({
+            label: className,
+            kind: 'class',
+            insertText: className,
+            detail: `class ${className}`,
+            doc: `User-defined ES6 class in ${state.activeFile}.`,
+            example: `const instance = new ${className}();`
+          });
+        }
+
+        const members = [];
+        const memberSeen = new Set();
+
+        // Extract `this.prop = ...`
+        const thisPropRegex = /this\.([A-Za-z_$][\w$]*)\s*=/g;
+        let pm;
+        while ((pm = thisPropRegex.exec(classBody)) !== null) {
+          const propName = pm[1];
+          if (!memberSeen.has(propName)) {
+            memberSeen.add(propName);
+            members.push({
+              label: propName,
+              kind: 'property',
+              insertText: propName,
+              detail: `(property) ${className}.${propName}`,
+              doc: `Instance property on ${className}.`,
+              example: `instance.${propName}`
+            });
+          }
+        }
+
+        // Extract Class Methods `methodName(args) {`
+        const methodRegex = /^\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*\(([^)]*)\)\s*\{/gm;
+        let mm;
+        while ((mm = methodRegex.exec(classBody)) !== null) {
+          const mName = mm[1];
+          const mArgs = mm[2].trim();
+          if (mName !== 'constructor' && !JS_CONTROLS.has(mName) && !memberSeen.has(mName)) {
+            memberSeen.add(mName);
+            members.push({
+              label: mName,
+              kind: 'method',
+              insertText: mArgs ? `${mName}($END$)` : `${mName}()`,
+              detail: `(method) ${className}.${mName}(${mArgs})`,
+              doc: `Method defined on class ${className}.`,
+              example: `instance.${mName}(${mArgs});`
+            });
+          }
+        }
+
+        classDefs[className] = members;
+      }
+
+      // 2. Parse Function Declarations `function foo(a, b)`
+      const fnRegex = /(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(([^)]*)\)/g;
+      while ((match = fnRegex.exec(code)) !== null) {
+        const fnName = match[1];
+        const params = match[2].trim();
+        if (!seen.has(fnName)) {
+          seen.add(fnName);
+          symbols.push({
+            label: fnName,
+            kind: 'function',
+            insertText: params ? `${fnName}($END$)` : `${fnName}()`,
+            detail: `function ${fnName}(${params})`,
+            doc: `User-defined function in ${state.activeFile}.`,
+            example: `${fnName}(${params});`
+          });
+        }
+      }
+
+      // 3. Parse Arrow Functions `const foo = (a, b) =>`
+      const arrowRegex = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\(([^)]*)\)|([A-Za-z_$][\w$]*))\s*=>/g;
+      while ((match = arrowRegex.exec(code)) !== null) {
+        const fnName = match[1];
+        const params = (match[2] !== undefined ? match[2] : match[3] || '').trim();
+        if (!seen.has(fnName)) {
+          seen.add(fnName);
+          symbols.push({
+            label: fnName,
+            kind: 'function',
+            insertText: params ? `${fnName}($END$)` : `${fnName}()`,
+            detail: `const ${fnName} = (${params}) => ...`,
+            doc: `User-defined arrow function in ${state.activeFile}.`,
+            example: `${fnName}(${params});`
+          });
+        }
+      }
+
+      // 4. Parse Variable Declarations & Infer Their Types!
+      const varRegex = /\b(const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*([^\n;]+)/g;
+      while ((match = varRegex.exec(code)) !== null) {
+        const declKind = match[1];
+        const varName = match[2];
+        const rhs = match[3].trim();
+
+        let inferredType = 'any';
+        if (rhs.startsWith('[')) inferredType = 'Array';
+        else if (rhs.startsWith('"') || rhs.startsWith("'") || rhs.startsWith('`')) inferredType = 'String';
+        else if (/^\d/.test(rhs) || rhs.startsWith('Math.')) inferredType = 'Number';
+        else if (rhs.startsWith('new Map')) inferredType = 'Map';
+        else if (rhs.startsWith('new Set')) inferredType = 'Set';
+        else if (rhs.startsWith('new Promise') || rhs.startsWith('fetch(')) inferredType = 'Promise';
+        else if (rhs.includes('getElementById("sandbox-canvas")') || rhs.includes("getElementById('sandbox-canvas')")) inferredType = 'HTMLElement';
+        else if (rhs.includes('getElementById(') || rhs.includes('querySelector(') || rhs.includes('createElement(')) inferredType = 'HTMLElement';
+        else if (rhs.includes('.getContext("2d")') || rhs.includes(".getContext('2d')")) inferredType = 'Canvas2D';
+        else if (rhs.startsWith('new ')) {
+          const clsMatch = rhs.match(/^new\s+([A-Za-z_$][\w$]*)/);
+          if (clsMatch) inferredType = clsMatch[1];
+        } else if (rhs.startsWith('{')) {
+          inferredType = 'ObjectLiteral';
+        } else if (/\.(filter|map|slice|toSorted|flat)\(/.test(rhs)) {
+          inferredType = 'Array';
+        }
+
+        varTypes[varName] = inferredType;
+
+        if (!seen.has(varName)) {
+          seen.add(varName);
+          symbols.push({
+            label: varName,
+            kind: declKind === 'const' ? 'const' : 'variable',
+            insertText: varName,
+            detail: `${declKind} ${varName}: ${inferredType}`,
+            doc: `User variable (${inferredType}) declared in ${state.activeFile}.`,
+            example: `console.log(${varName});`
+          });
+        }
+      }
+
+      // 5. Parse Object Literal Properties `const user = { name: "Ada", score: 100 }`
+      const objLiteralRegex = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*\{([\s\S]*?)\};?/g;
+      while ((match = objLiteralRegex.exec(code)) !== null) {
+        const objName = match[1];
+        const body = match[2];
+        const props = [];
+        const propSeen = new Set();
+        const keyRegex = /^\s*([A-Za-z_$][\w$]*)\s*(?::|\()/gm;
+        let km;
+        while ((km = keyRegex.exec(body)) !== null) {
+          const key = km[1];
+          if (!propSeen.has(key)) {
+            propSeen.add(key);
+            props.push({
+              label: key,
+              kind: 'property',
+              insertText: key,
+              detail: `(property) ${objName}.${key}`,
+              doc: `Property on object '${objName}'.`,
+              example: `${objName}.${key}`
+            });
+          }
+        }
+        if (props.length > 0) {
+          objProps[objName] = props;
+        }
+      }
+
+      state.userSymbols = symbols;
+      state.variableTypes = varTypes;
+      state.objectProperties = objProps;
+      state.classDefinitions = classDefs;
+
+      renderOutlineSidebar(symbols);
+    }
+
+    function renderOutlineSidebar(symbols) {
+      els.symbolCountBadge.textContent = symbols.length;
+      if (symbols.length === 0) {
+        els.outlineListContainer.innerHTML = `<div class="text-[#777777] italic p-2">Declare variables, functions, or classes to see live types.</div>`;
+        return;
+      }
+
+      els.outlineListContainer.innerHTML = symbols.map(sym => {
+        const iconInfo = getKindIcon(sym.kind);
+        return `
+          <div class="flex items-center justify-between px-2 py-1 rounded hover:bg-[#2a2d2e] cursor-pointer group" onclick="insertSymbolFromOutline('${sym.label}')">
+            <div class="flex items-center space-x-2 truncate">
+              <span class="kind-icon ${iconInfo.cls}"><i class="${iconInfo.icon}"></i></span>
+              <span class="text-[#cccccc] group-hover:text-white truncate">${escapeHtml(sym.label)}</span>
+            </div>
+            <span class="text-[10px] text-[#777777] ml-2 truncate">${escapeHtml(sym.detail.split(':')[1] || sym.kind)}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.insertSymbolFromOutline = function(label) {
+      els.textarea.focus();
+      insertTextAtCursor(label);
+    };
+
+    /*************************************************************************
+     * 7. VS CODE INTELLISENSE ENGINE (AUTOCOMPLETE & SIGNATURE HELP)
+     *************************************************************************/
+    function getKindIcon(kind) {
+      switch (kind) {
+        case 'method':
+        case 'function':
+          return { cls: 'kind-method', icon: 'fa-solid fa-cube' };
+        case 'property':
+        case 'field':
+          return { cls: 'kind-property', icon: 'fa-solid fa-wrench' };
+        case 'class':
+        case 'constructor':
+          return { cls: 'kind-class', icon: 'fa-solid fa-sitemap' };
+        case 'keyword':
+          return { cls: 'kind-keyword', icon: 'fa-solid fa-key' };
+        case 'snippet':
+          return { cls: 'kind-snippet', icon: 'fa-solid fa-wand-magic-sparkles' };
+        case 'module':
+          return { cls: 'kind-module', icon: 'fa-solid fa-box-open' };
+        default:
+          return { cls: 'kind-variable', icon: 'fa-solid fa-v' };
+      }
+    }
+
+    function computeCompletions(forceTrigger = false) {
+      if (!forceTrigger && !els.chkAutoSuggest.checked) {
+        hideIntelliSense();
+        return;
+      }
+
+      const code = els.textarea.value;
+      const pos = els.textarea.selectionStart;
+      const textBefore = code.slice(0, pos);
+      const currentLine = textBefore.split('\n').pop();
+
+      // Check 1: Member Access (`object.prop`)
+      const dotMatch = currentLine.match(/([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)?$/);
+      if (dotMatch && els.chkDotSuggest.checked) {
+        const targetObj = dotMatch[1];
+        const partialProp = (dotMatch[2] || '').toLowerCase();
+        state.triggerReplaceStart = pos - (dotMatch[2] ? dotMatch[2].length : 0);
+
+        let pool = [];
+        if (MEMBER_COMPLETIONS[targetObj]) {
+          pool = MEMBER_COMPLETIONS[targetObj];
+        } else if (targetObj === 'Array') {
+          pool = MEMBER_COMPLETIONS.ArrayStatic;
+        } else {
+          // Check inferred variable type!
+          const inferred = state.variableTypes[targetObj];
+          if (inferred && MEMBER_COMPLETIONS[inferred]) {
+            pool = MEMBER_COMPLETIONS[inferred];
+          } else if (inferred && state.classDefinitions[inferred]) {
+            pool = state.classDefinitions[inferred];
+          } else if (state.objectProperties[targetObj]) {
+            pool = state.objectProperties[targetObj];
+          } else {
+            // Fallback common JS object/array/string methods so dot completion is always helpful
+            pool = [
+              ...MEMBER_COMPLETIONS.Array.slice(0, 8),
+              ...MEMBER_COMPLETIONS.String.slice(0, 5)
+            ];
+          }
+        }
+
+        const filtered = pool.filter(item => item.label.toLowerCase().startsWith(partialProp));
+        if (filtered.length > 0) {
+          showIntelliSense(filtered);
+          return;
+        }
+      }
+
+      // Check 2: Word / Identifier / Snippet Completion
+      const wordMatch = currentLine.match(/([A-Za-z_$][\w$]*)$/);
+      if (wordMatch || forceTrigger) {
+        const partial = wordMatch ? wordMatch[1] : '';
+        if (!forceTrigger && partial.length < 1) {
+          hideIntelliSense();
+          return;
+        }
+
+        state.triggerReplaceStart = pos - partial.length;
+        const lower = partial.toLowerCase();
+
+        // Combine User Symbols + Global Built-ins + Snippets
+        const combined = [...state.userSymbols, ...GLOBAL_COMPLETIONS];
+        const seenLabels = new Set();
+
+        const matches = combined.filter(item => {
+          if (seenLabels.has(item.label)) return false;
+          if (!partial) {
+            seenLabels.add(item.label);
+            return true;
+          }
+          const labelLower = item.label.toLowerCase();
+          // Exclude exact match if nothing else matches and user finished typing
+          const isMatch = labelLower.startsWith(lower) || labelLower.includes(lower);
+          if (isMatch) {
+            seenLabels.add(item.label);
+            return true;
+          }
+          return false;
+        });
+
+        // Sort: startsWith matches first, user symbols prioritized
+        matches.sort((a, b) => {
+          const aStarts = a.label.toLowerCase().startsWith(lower) ? 0 : 1;
+          const bStarts = b.label.toLowerCase().startsWith(lower) ? 0 : 1;
+          if (aStarts !== bStarts) return aStarts - bStarts;
+          return a.label.localeCompare(b.label);
+        });
+
+        if (matches.length > 0) {
+          showIntelliSense(matches.slice(0, 25));
+          return;
+        }
+      }
+
+      hideIntelliSense();
+    }
+
+    function updateSignatureHelp() {
+      if (!els.chkSigHelp.checked) {
+        els.signatureWidget.style.display = 'none';
+        return;
+      }
+
+      const code = els.textarea.value;
+      const pos = els.textarea.selectionStart;
+      const currentLine = code.slice(0, pos).split('\n').pop();
+
+      // Match function call right before cursor: e.g. `arr.slice(0, ` or `setTimeout(`
+      const callMatch = currentLine.match(/([A-Za-z_$][\w$]*)\(([^()]*)$/);
+      if (callMatch) {
+        const fnName = callMatch[1];
+        const sigData = SIGNATURE_SIGNATURES[fnName];
+        if (sigData) {
+          els.signatureLabel.textContent = sigData.sig;
+          els.signatureDoc.textContent = sigData.doc;
+          const coords = getCursorPixelCoords();
+          els.signatureWidget.style.left = `${Math.max(16, Math.min(coords.left, els.textarea.clientWidth - 320))}px`;
+          els.signatureWidget.style.top = `${Math.max(8, coords.top - 58)}px`;
+          els.signatureWidget.style.display = 'block';
+          return;
+        }
+      }
+      els.signatureWidget.style.display = 'none';
+    }
+
+    function getCursorPixelCoords() {
+      const code = els.textarea.value;
+      const pos = els.textarea.selectionStart;
+      const lines = code.slice(0, pos).split('\n');
+      const row = lines.length - 1;
+      const col = lines[lines.length - 1].length;
+
+      const top = 16 + (row + 1) * state.lineHeight - els.textarea.scrollTop;
+      const left = 16 + col * state.charWidth - els.textarea.scrollLeft;
+      return { top, left, row, col };
+    }
+
+    function showIntelliSense(items) {
+      state.suggestions = items;
+      state.selectedSuggestionIndex = 0;
+      state.isSuggestOpen = true;
+
+      renderIntelliSenseList();
+      positionIntelliSenseWidget();
+      els.intellisenseWidget.style.display = 'flex';
+    }
+
+    function hideIntelliSense() {
+      state.isSuggestOpen = false;
+      els.intellisenseWidget.style.display = 'none';
+    }
+
+    function positionIntelliSenseWidget() {
+      const coords = getCursorPixelCoords();
+      const viewportHeight = els.textarea.clientHeight;
+      const viewportWidth = els.textarea.clientWidth;
+
+      let top = coords.top + 4;
+      if (top + 260 > viewportHeight && coords.top > 270) {
+        top = coords.top - 265;
+      }
+
+      let left = Math.max(12, Math.min(coords.left, viewportWidth - 320));
+      els.intellisenseWidget.style.top = `${top}px`;
+      els.intellisenseWidget.style.left = `${left}px`;
+    }
+
+    function renderIntelliSenseList() {
+      els.intellisenseMatchCount.textContent = `${state.suggestions.length} suggestions`;
+
+      els.intellisenseList.innerHTML = state.suggestions.map((item, idx) => {
+        const isSelected = idx === state.selectedSuggestionIndex;
+        const iconInfo = getKindIcon(item.kind);
+        return `
+          <div
+            data-idx="${idx}"
+            class="intellisense-item px-2.5 py-1.5 flex items-center justify-between cursor-pointer text-xs font-mono transition-colors ${isSelected ? 'bg-[#04395e] text-white' : 'text-[#cccccc] hover:bg-[#2a2d2e]'}"
+          >
+            <div class="flex items-center space-x-2 truncate">
+              <span class="kind-icon ${iconInfo.cls}"><i class="${iconInfo.icon}"></i></span>
+              <span class="font-medium truncate">${escapeHtml(item.label)}</span>
+            </div>
+            <span class="text-[10px] ${isSelected ? 'text-blue-200' : 'text-[#888888]'} ml-2 truncate max-w-[110px]">${escapeHtml(item.kind)}</span>
+          </div>
+        `;
+      }).join('');
+
+      // Bind click events on items
+      els.intellisenseList.querySelectorAll('.intellisense-item').forEach(el => {
+        el.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          const idx = parseInt(el.getAttribute('data-idx'), 10);
+          state.selectedSuggestionIndex = idx;
+          acceptSelectedSuggestion();
+        });
+      });
+
+      // Scroll active item into view
+      const activeEl = els.intellisenseList.children[state.selectedSuggestionIndex];
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: 'nearest' });
+      }
+
+      // Update Documentation Flyout Panel
+      const activeItem = state.suggestions[state.selectedSuggestionIndex];
+      if (activeItem) {
+        els.docKindBadge.textContent = activeItem.kind;
+        els.docSignature.textContent = activeItem.detail || activeItem.label;
+        els.docDescription.textContent = activeItem.doc || 'JavaScript symbol completion.';
+        if (activeItem.example) {
+          els.docExampleBox.classList.remove('hidden');
+          els.docExample.textContent = activeItem.example;
+        } else {
+          els.docExampleBox.classList.add('hidden');
+        }
+      }
+    }
+
+    function acceptSelectedSuggestion() {
+      if (!state.isSuggestOpen || state.suggestions.length === 0) return;
+      const item = state.suggestions[state.selectedSuggestionIndex];
+      if (!item) return;
+
+      const code = els.textarea.value;
+      const currentPos = els.textarea.selectionStart;
+      const before = code.slice(0, state.triggerReplaceStart);
+      const after = code.slice(currentPos);
+
+      // Handle $END$ cursor marker inside snippet/method completions
+      let rawInsert = item.insertText || item.label;
+      let cursorOffset = rawInsert.length;
+      const markerIdx = rawInsert.indexOf('$END$');
+      if (markerIdx !== -1) {
+        rawInsert = rawInsert.replace(/\$END\$/g, '');
+        cursorOffset = markerIdx;
+      }
+
+      els.textarea.value = before + rawInsert + after;
+      const newCursorPos = before.length + cursorOffset;
+      els.textarea.setSelectionRange(newCursorPos, newCursorPos);
+
+      hideIntelliSense();
+      onEditorChange();
+      updateSignatureHelp();
+    }
+
+    function insertTextAtCursor(text) {
+      const start = els.textarea.selectionStart;
+      const end = els.textarea.selectionEnd;
+      const code = els.textarea.value;
+
+      let cleanText = text;
+      let cursorOffset = cleanText.length;
+      const marker = cleanText.indexOf('$END$');
+      if (marker !== -1) {
+        cleanText = cleanText.replace(/\$END\$/g, '');
+        cursorOffset = marker;
+      }
+
+      els.textarea.value = code.slice(0, start) + cleanText + code.slice(end);
+      els.textarea.setSelectionRange(start + cursorOffset, start + cursorOffset);
+      onEditorChange();
+    }
+
+    /*************************************************************************
+     * 8. EDITOR SYNCHRONIZATION, KEYBOARD SHORTCUTS & AUTO-PAIRING
+     *************************************************************************/
+    const AUTO_PAIRS = {
+      '(': ')',
+      '{': '}',
+      '[': ']',
+      '"': '"',
+      "'": "'",
+      '`': '`'
+    };
+
+    function onEditorChange() {
+      const code = els.textarea.value;
+      state.files[state.activeFile] = code;
+      saveWorkspace();
+
+      // 1. Check syntax
+      const syntaxRes = checkSyntax(code);
+
+      // 2. Highlight code
+      els.highlightContent.innerHTML = highlightJavaScript(code, syntaxRes.line);
+
+      // 3. Update Line Numbers Gutter
+      const lineCount = code.split('\n').length;
+      let gutterHtml = '';
+      for (let i = 1; i <= lineCount; i++) {
+        gutterHtml += `<div>${i}</div>`;
+      }
+      els.gutter.innerHTML = gutterHtml;
+
+      // 4. Parse Symbols & Inferred Types
+      analyzeCodeSymbols(code);
+
+      // 5. Update Cursor Status
+      updateCursorMetrics();
+
+      // 6. Auto-Run if Live Scratchpad is toggled on
+      if (els.toggleAutorun.checked) {
+        clearTimeout(state.autoRunTimer);
+        state.autoRunTimer = setTimeout(() => {
+          if (syntaxRes.valid) executeJavaScript();
+        }, 450);
+      }
+    }
+
+    function updateCursorMetrics() {
+      const code = els.textarea.value;
+      const pos = els.textarea.selectionStart;
+      const linesBefore = code.slice(0, pos).split('\n');
+      const ln = linesBefore.length;
+      const col = linesBefore[linesBefore.length - 1].length + 1;
+
+      els.statusCursor.textContent = `Ln ${ln}, Col ${col}`;
+
+      // Move active line highlight bar
+      const topPos = 16 + (ln - 1) * state.lineHeight - els.textarea.scrollTop;
+      els.activeLineBar.style.top = `${topPos}px`;
+
+      // Update Breadcrumb scope indicator
+      els.breadcrumbScope.textContent = `Ln ${ln}`;
+    }
+
+    // Sync Scroll between Textarea, Highlight Pre, and Line Gutter
+    els.textarea.addEventListener('scroll', () => {
+      els.highlightPre.scrollTop = els.textarea.scrollTop;
+      els.highlightPre.scrollLeft = els.textarea.scrollLeft;
+      els.gutter.scrollTop = els.textarea.scrollTop;
+      updateCursorMetrics();
+      if (state.isSuggestOpen) positionIntelliSenseWidget();
+    });
+
+    els.textarea.addEventListener('input', () => {
+      onEditorChange();
+      computeCompletions(false);
+      updateSignatureHelp();
+    });
+
+    els.textarea.addEventListener('click', () => {
+      updateCursorMetrics();
+      updateSignatureHelp();
+    });
+
+    els.textarea.addEventListener('keyup', (e) => {
+      if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
+        updateCursorMetrics();
+        updateSignatureHelp();
+      }
+    });
+
+    // Keyboard Handling for VS Code Experience
+    els.textarea.addEventListener('keydown', (e) => {
+      // 1. Run Code: Ctrl+Enter or Cmd+Enter
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        executeJavaScript();
+        return;
+      }
+
+      // 2. Manual IntelliSense Trigger: Ctrl+Space
+      if ((e.ctrlKey || e.metaKey) && e.code === 'Space') {
+        e.preventDefault();
+        computeCompletions(true);
+        return;
+      }
+
+      // 3. Format Code: Shift+Alt+F
+      if (e.shiftKey && e.altKey && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault();
+        formatActiveCode();
+        return;
+      }
+
+      // 4. Toggle Comment: Ctrl+/ or Cmd+/
+      if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+        e.preventDefault();
+        toggleLineComment();
+        return;
+      }
+
+      // 5. Navigate or Accept IntelliSense Popup when Open
+      if (state.isSuggestOpen) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          state.selectedSuggestionIndex = (state.selectedSuggestionIndex + 1) % state.suggestions.length;
+          renderIntelliSenseList();
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          state.selectedSuggestionIndex = (state.selectedSuggestionIndex - 1 + state.suggestions.length) % state.suggestions.length;
+          renderIntelliSenseList();
+          return;
+        }
+        if (e.key === 'Tab' || e.key === 'Enter') {
+          e.preventDefault();
+          acceptSelectedSuggestion();
+          return;
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          hideIntelliSense();
+          return;
+        }
+      }
+
+      // 6. Smart Indentation on Enter
+      if (e.key === 'Enter') {
+        const start = els.textarea.selectionStart;
+        const end = els.textarea.selectionEnd;
+        const code = els.textarea.value;
+        const lineStart = code.lastIndexOf('\n', start - 1) + 1;
+        const currentLine = code.slice(lineStart, start);
+        const indentMatch = currentLine.match(/^\s*/);
+        const currentIndent = indentMatch ? indentMatch[0] : '';
+
+        const charBefore = code[start - 1];
+        const charAfter = code[end];
+
+        // If pressing Enter right between `{|}` or `[|]` or `(|)`
+        if ((charBefore === '{' && charAfter === '}') ||
+            (charBefore === '[' && charAfter === ']') ||
+            (charBefore === '(' && charAfter === ')')) {
+          e.preventDefault();
+          const innerIndent = currentIndent + '  ';
+          const insertion = `\n${innerIndent}\n${currentIndent}`;
+          els.textarea.value = code.slice(0, start) + insertion + code.slice(end);
+          const newCursor = start + 1 + innerIndent.length;
+          els.textarea.setSelectionRange(newCursor, newCursor);
+          onEditorChange();
+          return;
+        }
+
+        // If line ends with `{`, increase indent on next line
+        if (currentLine.trimEnd().endsWith('{')) {
+          e.preventDefault();
+          const nextIndent = currentIndent + '  ';
+          els.textarea.value = code.slice(0, start) + '\n' + nextIndent + code.slice(end);
+          const newCursor = start + 1 + nextIndent.length;
+          els.textarea.setSelectionRange(newCursor, newCursor);
+          onEditorChange();
+          return;
+        }
+
+        // Preserve current line's indentation
+        if (currentIndent.length > 0) {
+          e.preventDefault();
+          els.textarea.value = code.slice(0, start) + '\n' + currentIndent + code.slice(end);
+          const newCursor = start + 1 + currentIndent.length;
+          els.textarea.setSelectionRange(newCursor, newCursor);
+          onEditorChange();
+          return;
+        }
+      }
+
+      // 7. Tab Key Inserts 2 Spaces
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        insertTextAtCursor('  ');
+        return;
+      }
+
+      // 8. Auto-Closing Brackets & Quotes
+      if (els.chkAutoClose.checked && AUTO_PAIRS[e.key]) {
+        const start = els.textarea.selectionStart;
+        const end = els.textarea.selectionEnd;
+        const code = els.textarea.value;
+        const closeChar = AUTO_PAIRS[e.key];
+
+        // Skip over closing char if already there
+        if (start === end && code[start] === closeChar && (e.key === '"' || e.key === "'" || e.key === '`')) {
+          e.preventDefault();
+          els.textarea.setSelectionRange(start + 1, start + 1);
+          return;
+        }
+
+        e.preventDefault();
+        const selectedText = code.slice(start, end);
+        els.textarea.value = code.slice(0, start) + e.key + selectedText + closeChar + code.slice(end);
+        els.textarea.setSelectionRange(start + 1, end + 1);
+        onEditorChange();
+        updateSignatureHelp();
+      }
+    });
+
+    function toggleLineComment() {
+      const code = els.textarea.value;
+      const start = els.textarea.selectionStart;
+      const lineStart = code.lastIndexOf('\n', start - 1) + 1;
+      let lineEnd = code.indexOf('\n', start);
+      if (lineEnd === -1) lineEnd = code.length;
+
+      const line = code.slice(lineStart, lineEnd);
+      let newLine;
+      let offset = 0;
+
+      if (line.trimStart().startsWith('//')) {
+        newLine = line.replace(/\/\/\s?/, '');
+        offset = -(line.length - newLine.length);
+      } else {
+        newLine = '// ' + line;
+        offset = 3;
+      }
+
+      els.textarea.value = code.slice(0, lineStart) + newLine + code.slice(lineEnd);
+      els.textarea.setSelectionRange(start + offset, start + offset);
+      onEditorChange();
+    }
+
+    function formatActiveCode() {
+      const code = els.textarea.value;
+      const lines = code.split('\n');
+      let indentLevel = 0;
+      const formatted = lines.map(rawLine => {
+        const trimmed = rawLine.trim();
+        if (!trimmed) return '';
+        if (/^[}\])]/.test(trimmed)) {
+          indentLevel = Math.max(0, indentLevel - 1);
+        }
+        const out = '  '.repeat(indentLevel) + trimmed;
+        if (/[{[(]$/.test(trimmed)) {
+          indentLevel++;
+        }
+        return out;
+      }).join('\n');
+
+      els.textarea.value = formatted;
+      onEditorChange();
+    }
+
+    /*************************************************************************
+     * 9. JAVASCRIPT EXECUTION SANDBOX & INTERACTIVE CONSOLE
+     *************************************************************************/
+    function formatConsoleValue(val, depth = 0) {
+      if (val === null) return `<span class="text-[#569cd6]">null</span>`;
+      if (val === undefined) return `<span class="text-[#888888]">undefined</span>`;
+      if (typeof val === 'string') return depth === 0 ? escapeHtml(val) : `<span class="text-[#ce9178]">"${escapeHtml(val)}"</span>`;
+      if (typeof val === 'number' || typeof val === 'boolean') return `<span class="text-[#b5cea8]">${String(val)}</span>`;
+      if (typeof val === 'function') return `<span class="text-[#dcdcaa]">ƒ ${escapeHtml(val.name || 'anonymous')}()</span>`;
+      if (val instanceof Error) return `<span class="text-[#f48771]">${escapeHtml(val.stack || val.message)}</span>`;
+
+      if (Array.isArray(val)) {
+        if (depth > 2) return `<span class="text-[#9cdcfe]">Array(${val.length})</span>`;
+        const items = val.map(v => formatConsoleValue(v, depth + 1)).join(', ');
+        return `<span class="text-[#cccccc]">(${val.length}) [${items}]</span>`;
+      }
+
+      if (typeof val === 'object') {
+        try {
+          const entries = Object.entries(val);
+          if (depth > 2) return `<span class="text-[#4ec9b0]">{...}</span>`;
+          const inner = entries.map(([k, v]) => `<span class="text-[#9cdcfe]">${escapeHtml(k)}</span>: ${formatConsoleValue(v, depth + 1)}`).join(', ');
+          return `<span class="text-[#cccccc]">{ ${inner} }</span>`;
+        } catch (e) {
+          return escapeHtml(String(val));
+        }
+      }
+      return escapeHtml(String(val));
+    }
+
+    function renderConsoleTable(data) {
+      let rows = [];
+      if (Array.isArray(data)) {
+        rows = data;
+      } else if (data && typeof data === 'object') {
+        rows = Object.entries(data).map(([k, v]) => ({ '(index)': k, Value: v }));
+      } else {
+        appendConsoleRow('log', [data]);
+        return;
+      }
+
+      if (rows.length === 0) {
+        appendConsoleRow('log', ['(Empty Table)']);
+        return;
+      }
+
+      // Collect all columns
+      const colSet = new Set(['(index)']);
+      rows.forEach(r => {
+        if (r && typeof r === 'object') {
+          Object.keys(r).forEach(k => colSet.add(k));
+        } else {
+          colSet.add('Value');
+        }
+      });
+      const cols = Array.from(colSet);
+
+      let html = `
+        <div class="my-1 overflow-x-auto border border-[#3c3c3c] rounded bg-[#252526]">
+          <table class="w-full text-left border-collapse text-[11px] font-mono">
+            <thead>
+              <tr class="bg-[#2d2d2d] text-[#9cdcfe] border-b border-[#3c3c3c]">
+                ${cols.map(c => `<th class="py-1.5 px-2.5 border-r border-[#3c3c3c] font-semibold">${escapeHtml(c)}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-[#333333]">
+              ${rows.map((row, i) => `
+                <tr class="hover:bg-[#2a2d2e]">
+                  ${cols.map(col => {
+                    if (col === '(index)') return `<td class="py-1 px-2.5 border-r border-[#333333] text-[#888888]">${i}</td>`;
+                    const cellVal = (row && typeof row === 'object') ? row[col] : (col === 'Value' ? row : '');
+                    return `<td class="py-1 px-2.5 border-r border-[#333333]">${formatConsoleValue(cellVal, 1)}</td>`;
+                  }).join('')}
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = html;
+      els.consoleOutput.appendChild(wrapper);
+      els.consoleOutput.scrollTop = els.consoleOutput.scrollHeight;
+      incrementConsoleBadge();
+    }
+
+    function appendConsoleRow(level, args) {
+      let bgClass = 'bg-transparent border-b border-[#2b2b2b]';
+      let iconHtml = `<i class="fa-solid fa-angle-right text-[#569cd6] mr-2"></i>`;
+
+      if (level === 'warn') {
+        bgClass = 'bg-[#332b00]/60 border-l-2 border-yellow-500 text-yellow-200';
+        iconHtml = `<i class="fa-solid fa-triangle-exclamation text-yellow-400 mr-2"></i>`;
+      } else if (level === 'error') {
+        bgClass = 'bg-[#3a1d1d]/70 border-l-2 border-[#f44747] text-[#f48771]';
+        iconHtml = `<i class="fa-solid fa-circle-xmark text-[#f44747] mr-2"></i>`;
+      } else if (level === 'info') {
+        iconHtml = `<i class="fa-solid fa-circle-info text-[#75beff] mr-2"></i>`;
+      } else if (level === 'return') {
+        iconHtml = `<i class="fa-solid fa-arrow-left text-[#4ec9b0] mr-2"></i>`;
+      }
+
+      const row = document.createElement('div');
+      row.className = `px-2 py-1.5 rounded-xs flex items-start justify-between ${bgClass}`;
+      const formattedArgs = args.map(a => formatConsoleValue(a, 0)).join(' ');
+      const timeStr = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      row.innerHTML = `
+        <div class="flex items-start break-all pr-2">
+          <span class="shrink-0 mt-0.5">${iconHtml}</span>
+          <div class="leading-relaxed">${formattedArgs}</div>
+        </div>
+        <span class="text-[10px] text-[#666666] shrink-0 ml-2">${timeStr}</span>
+      `;
+
+      els.consoleOutput.appendChild(row);
+      els.consoleOutput.scrollTop = els.consoleOutput.scrollHeight;
+      incrementConsoleBadge();
+    }
+
+    function incrementConsoleBadge() {
+      state.consoleCount++;
+      els.consoleBadge.textContent = state.consoleCount;
+    }
+
+    function clearConsole() {
+      els.consoleOutput.innerHTML = '';
+      state.consoleCount = 0;
+      els.consoleBadge.textContent = '0';
+    }
+
+    async function executeJavaScript() {
+      const code = els.textarea.value;
+      clearConsole();
+
+      // Switch to Visual Sandbox tab automatically if code touches sandbox-canvas or sandbox-app
+      if (code.includes('sandbox-canvas') || code.includes('sandbox-app')) {
+        switchOutputTab('sandbox');
+      }
+
+      const customConsole = {
+        log: (...args) => appendConsoleRow('log', args),
+        info: (...args) => appendConsoleRow('info', args),
+        warn: (...args) => appendConsoleRow('warn', args),
+        error: (...args) => appendConsoleRow('error', args),
+        dir: (item) => appendConsoleRow('log', [item]),
+        table: (data) => renderConsoleTable(data),
+        clear: () => clearConsole(),
+        assert: (cond, ...args) => {
+          if (!cond) appendConsoleRow('error', ['Assertion failed:', ...args]);
+        },
+        time: (label = 'default') => {
+          state.timers[label] = performance.now();
+        },
+        timeEnd: (label = 'default') => {
+          if (state.timers[label]) {
+            const elapsed = (performance.now() - state.timers[label]).toFixed(2);
+            appendConsoleRow('info', [`⏱️ ${label}: ${elapsed} ms`]);
+            delete state.timers[label];
+          }
+        }
+      };
+
+      const startTime = performance.now();
+      try {
+        const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+        const runner = new AsyncFunction('console', code);
+        const result = await runner(customConsole);
+
+        const elapsed = (performance.now() - startTime).toFixed(1);
+        els.execTimeBadge.textContent = `Executed in ${elapsed}ms`;
+        els.execTimeBadge.className = 'text-[11px] text-[#4ec9b0] font-mono hidden sm:inline';
+
+        if (result !== undefined) {
+          appendConsoleRow('return', [result]);
+        } else if (state.consoleCount === 0) {
+          appendConsoleRow('info', ['Code executed successfully with no console output.']);
+        }
+      } catch (err) {
+        appendConsoleRow('error', [err]);
+        els.execTimeBadge.textContent = 'Runtime Error';
+        els.execTimeBadge.className = 'text-[11px] text-[#f48771] font-mono hidden sm:inline';
+      }
+    }
+
+    // REPL Evaluation
+    function runReplCommand() {
+      const expr = els.replInput.value.trim();
+      if (!expr) return;
+      els.replInput.value = '';
+
+      // Echo input
+      const echoRow = document.createElement('div');
+      echoRow.className = 'px-2 py-1 text-[#75beff] flex items-center';
+      echoRow.innerHTML = `<span class="mr-2 font-bold">&gt;</span><span>${escapeHtml(expr)}</span>`;
+      els.consoleOutput.appendChild(echoRow);
+
+      try {
+        // Combine current editor declarations with REPL expression
+        const currentCode = els.textarea.value;
+        const fn = new Function(`${currentCode}\n; return (${expr});`);
+        const res = fn();
+        appendConsoleRow('return', [res]);
+      } catch (err) {
+        try {
+          const fn2 = new Function(`return (${expr});`);
+          appendConsoleRow('return', [fn2()]);
+        } catch (err2) {
+          appendConsoleRow('error', [err2.message]);
+        }
+      }
+    }
+
+    els.replInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') runReplCommand();
+    });
+    document.getElementById('btn-repl-send').addEventListener('click', runReplCommand);
+
+    /*************************************************************************
+     * 10. MULTI-FILE & TAB WORKSPACE MANAGEMENT
+     *************************************************************************/
+    function renderWorkspaceUI() {
+      // 1. Render Sidebar Explorer File List
+      els.fileListContainer.innerHTML = Object.keys(state.files).map(filename => {
+        const isActive = filename === state.activeFile;
+        return `
+          <div
+            class="px-4 py-1.5 flex items-center justify-between text-xs cursor-pointer group ${isActive ? 'bg-[#37373d] text-white font-medium' : 'text-[#cccccc] hover:bg-[#2a2d2e]'}"
+            onclick="switchFile('${filename}')"
+          >
+            <div class="flex items-center space-x-2 truncate">
+              <i class="fa-brands fa-js text-yellow-400 text-sm"></i>
+              <span class="truncate">${escapeHtml(filename)}</span>
+            </div>
+            ${Object.keys(state.files).length > 1 ? `
+              <button
+                onclick="event.stopPropagation(); deleteFile('${filename}')"
+                class="opacity-0 group-hover:opacity-100 text-[#888888] hover:text-[#f48771] px-1"
+                title="Delete File"
+              >
+                <i class="fa-solid fa-trash-can text-[11px]"></i>
+              </button>
+            ` : ''}
+          </div>
+        `;
+      }).join('');
+
+      // 2. Render Editor Tabs
+      els.tabsContainer.innerHTML = state.openTabs.map(filename => {
+        const isActive = filename === state.activeFile;
+        return `
+          <div
+            onclick="switchFile('${filename}')"
+            class="h-full px-3 flex items-center space-x-2 text-xs cursor-pointer border-r border-[#252526] select-none shrink-0 ${isActive ? 'bg-[#1e1e1e] text-white border-t-2 border-t-[#007acc]' : 'bg-[#2d2d2d] text-[#969696] hover:bg-[#2a2d2e]'}"
+          >
+            <i class="fa-brands fa-js text-yellow-400"></i>
+            <span>${escapeHtml(filename)}</span>
+          </div>
+        `;
+      }).join('');
+
+      els.breadcrumbFile.textContent = state.activeFile;
+      els.activeFilenameTitle.textContent = state.activeFile;
+    }
+
+    window.switchFile = function(filename) {
+      if (!state.files[filename]) return;
+      state.activeFile = filename;
+      if (!state.openTabs.includes(filename)) {
+        state.openTabs.push(filename);
+      }
+      els.textarea.value = state.files[filename];
+      hideIntelliSense();
+      renderWorkspaceUI();
+      onEditorChange();
+    };
+
+    window.deleteFile = function(filename) {
+      if (Object.keys(state.files).length <= 1) return;
+      delete state.files[filename];
+      state.openTabs = state.openTabs.filter(f => f !== filename);
+      if (state.activeFile === filename) {
+        state.activeFile = Object.keys(state.files)[0];
+      }
+      saveWorkspace();
+      switchFile(state.activeFile);
+    };
+
+    function openNewFileModal() {
+      els.modalTitle.innerHTML = `<i class="fa-solid fa-file-circle-plus mr-2 text-[#75beff]"></i>Create New JavaScript File`;
+      els.modalBody.innerHTML = `
+        <div class="space-y-3">
+          <label class="block text-xs text-[#cccccc]">File Name (.js)</label>
+          <input id="new-file-input" type="text" placeholder="e.g. utils.js" class="w-full bg-[#1e1e1e] border border-[#454545] focus:border-[#007acc] rounded px-3 py-2 text-sm text-white font-mono outline-none" />
+          <div class="flex justify-end space-x-2 pt-2">
+            <button onclick="closeModal()" class="px-3 py-1.5 rounded bg-[#3c3c3c] text-xs text-white hover:bg-[#4a4a4a]">Cancel</button>
+            <button id="btn-confirm-new-file" class="px-4 py-1.5 rounded bg-[#007acc] text-xs text-white font-medium hover:bg-[#1f8ad2]">Create File</button>
+          </div>
+        </div>
+      `;
+      els.modalBackdrop.classList.remove('hidden');
+      const input = document.getElementById('new-file-input');
+      input.focus();
+
+      const createFn = () => {
+        let name = input.value.trim();
+        if (!name) return;
+        if (!name.endsWith('.js')) name += '.js';
+        if (!state.files[name]) {
+          state.files[name] = `// ${name}\n// Created in CodeStudio JS\n\n`;
+          state.openTabs.push(name);
+        }
+        closeModal();
+        switchFile(name);
+      };
+
+      document.getElementById('btn-confirm-new-file').addEventListener('click', createFn);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') createFn();
+      });
+    }
+
+    function openSnippetsModal() {
+      const snippets = GLOBAL_COMPLETIONS.filter(c => c.kind === 'snippet');
+      els.modalTitle.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles mr-2 text-[#b180d7]"></i>VS Code JavaScript Snippets`;
+      els.modalBody.innerHTML = `
+        <div class="space-y-2">
+          <p class="text-xs text-[#aaaaaa] mb-2">Type any prefix in the editor and press <kbd class="bg-[#1e1e1e] px-1.5 py-0.5 rounded border border-[#454545]">Tab</kbd>, or click below to insert immediately:</p>
+          ${snippets.map((s, idx) => `
+            <div onclick="insertSnippetByIndex(${idx})" class="p-2.5 rounded bg-[#1e1e1e] hover:bg-[#2a2d2e] border border-[#3c3c3c] cursor-pointer flex items-center justify-between transition">
+              <div>
+                <div class="flex items-center space-x-2">
+                  <span class="font-mono text-xs font-bold text-[#dcdcaa] bg-[#252526] px-2 py-0.5 rounded border border-[#454545]">${escapeHtml(s.label)}</span>
+                  <span class="text-xs text-white font-medium">${escapeHtml(s.detail)}</span>
+                </div>
+                <p class="text-[11px] text-[#888888] mt-1">${escapeHtml(s.doc)}</p>
+              </div>
+              <i class="fa-solid fa-plus text-[#007acc]"></i>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      els.modalBackdrop.classList.remove('hidden');
+    }
+
+    window.insertSnippetByIndex = function(idx) {
+      const snippets = GLOBAL_COMPLETIONS.filter(c => c.kind === 'snippet');
+      const s = snippets[idx];
+      if (s) {
+        closeModal();
+        els.textarea.focus();
+        insertTextAtCursor(s.insertText);
+      }
+    };
+
+    function openShortcutsModal() {
+      els.modalTitle.innerHTML = `<i class="fa-regular fa-keyboard mr-2 text-[#4ec9b0]"></i>VS Code Keyboard Shortcuts & IntelliSense Guide`;
+      els.modalBody.innerHTML = `
+        <div class="space-y-2 text-xs">
+          <div class="grid grid-cols-2 gap-2">
+            <div class="bg-[#1e1e1e] p-2.5 rounded border border-[#3c3c3c] flex justify-between items-center">
+              <span>Run JavaScript</span>
+              <kbd class="bg-[#252526] px-2 py-0.5 rounded border border-[#454545] font-mono">Ctrl + Enter</kbd>
+            </div>
+            <div class="bg-[#1e1e1e] p-2.5 rounded border border-[#3c3c3c] flex justify-between items-center">
+              <span>Trigger IntelliSense</span>
+              <kbd class="bg-[#252526] px-2 py-0.5 rounded border border-[#454545] font-mono">Ctrl + Space</kbd>
+            </div>
+            <div class="bg-[#1e1e1e] p-2.5 rounded border border-[#3c3c3c] flex justify-between items-center">
+              <span>Accept Suggestion</span>
+              <kbd class="bg-[#252526] px-2 py-0.5 rounded border border-[#454545] font-mono">Tab / Enter</kbd>
+            </div>
+            <div class="bg-[#1e1e1e] p-2.5 rounded border border-[#3c3c3c] flex justify-between items-center">
+              <span>Format Code</span>
+              <kbd class="bg-[#252526] px-2 py-0.5 rounded border border-[#454545] font-mono">Shift + Alt + F</kbd>
+            </div>
+            <div class="bg-[#1e1e1e] p-2.5 rounded border border-[#3c3c3c] flex justify-between items-center">
+              <span>Toggle Line Comment</span>
+              <kbd class="bg-[#252526] px-2 py-0.5 rounded border border-[#454545] font-mono">Ctrl + /</kbd>
+            </div>
+            <div class="bg-[#1e1e1e] p-2.5 rounded border border-[#3c3c3c] flex justify-between items-center">
+              <span>Close Popup</span>
+              <kbd class="bg-[#252526] px-2 py-0.5 rounded border border-[#454545] font-mono">Esc</kbd>
+            </div>
+          </div>
+        </div>
+      `;
+      els.modalBackdrop.classList.remove('hidden');
+    }
+
+    window.closeModal = function() {
+      els.modalBackdrop.classList.add('hidden');
+    };
+
+    /*************************************************************************
+     * 11. UI CONTROLS & EVENT BINDINGS
+     *************************************************************************/
+    function switchOutputTab(tab) {
+      if (tab === 'console') {
+        els.panelConsoleView.classList.remove('hidden');
+        els.panelSandboxView.classList.add('hidden');
+        els.tabBtnConsole.className = 'h-full border-b-2 border-[#007acc] text-white font-medium px-1 flex items-center space-x-1.5';
+        els.tabBtnSandbox.className = 'h-full border-b-2 border-transparent text-[#888888] hover:text-white font-medium px-1 flex items-center space-x-1.5';
+      } else {
+        els.panelSandboxView.classList.remove('hidden');
+        els.panelConsoleView.classList.add('hidden');
+        els.tabBtnSandbox.className = 'h-full border-b-2 border-[#007acc] text-white font-medium px-1 flex items-center space-x-1.5';
+        els.tabBtnConsole.className = 'h-full border-b-2 border-transparent text-[#888888] hover:text-white font-medium px-1 flex items-center space-x-1.5';
+      }
+    }
+
+    els.tabBtnConsole.addEventListener('click', () => switchOutputTab('console'));
+    els.tabBtnSandbox.addEventListener('click', () => switchOutputTab('sandbox'));
+
+    document.getElementById('btn-run-code').addEventListener('click', executeJavaScript);
+    document.getElementById('btn-clear-console').addEventListener('click', clearConsole);
+    document.getElementById('btn-new-file-top').addEventListener('click', openNewFileModal);
+    document.getElementById('btn-sidebar-new-file').addEventListener('click', openNewFileModal);
+    document.getElementById('btn-snippets-modal').addEventListener('click', openSnippetsModal);
+    document.getElementById('btn-command-palette').addEventListener('click', openSnippetsModal);
+    document.getElementById('btn-shortcuts-help').addEventListener('click', openShortcutsModal);
+    document.getElementById('btn-close-modal').addEventListener('click', closeModal);
+    document.getElementById('btn-format-code').addEventListener('click', formatActiveCode);
+    document.getElementById('btn-trigger-suggest').addEventListener('click', () => {
+      els.textarea.focus();
+      computeCompletions(true);
+    });
+
+    // Download Active .js File
+    document.getElementById('btn-download-file').addEventListener('click', () => {
+      const blob = new Blob([els.textarea.value], { type: 'text/javascript' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = state.activeFile;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // Reset Starter Workspace
+    document.getElementById('btn-reset-workspace').addEventListener('click', () => {
+      localStorage.removeItem('codestudio_js_files_v1');
+      loadWorkspace();
+      switchFile('main.js');
+      executeJavaScript();
+    });
+
+    // Reset Visual Sandbox Surface
+    document.getElementById('btn-reset-sandbox').addEventListener('click', () => {
+      document.getElementById('sandbox-app').innerHTML = `<div class="text-[#888888] text-xs">DOM Output (<code class="text-[#9cdcfe]">document.getElementById('sandbox-app')</code>)</div>`;
+      const canvas = document.getElementById('sandbox-canvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    });
+
+    // Activity Bar Switching
+    document.querySelectorAll('.activity-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const view = btn.getAttribute('data-sidebar');
+        const sidebarPanel = document.getElementById('sidebar-panel');
+        sidebarPanel.classList.remove('hidden');
+
+        document.querySelectorAll('.activity-btn').forEach(b => {
+          b.className = 'activity-btn w-full py-2.5 flex justify-center text-[#858585] hover:text-white border-l-2 border-transparent transition';
+        });
+        btn.className = 'activity-btn w-full py-2.5 flex justify-center text-white border-l-2 border-white bg-[#252526]/40 transition';
+
+        document.getElementById('sidebar-view-explorer').classList.toggle('hidden', view !== 'explorer');
+        document.getElementById('sidebar-view-intellisense').classList.toggle('hidden', view !== 'intellisense');
+        document.getElementById('sidebar-view-snippets').classList.toggle('hidden', view !== 'snippets');
+      });
+    });
+
+    // Theme Switcher
+    document.getElementById('theme-select').addEventListener('change', (e) => {
+      document.body.classList.remove('theme-monokai', 'theme-dracula', 'theme-github-dark');
+      if (e.target.value !== 'vscode-dark') {
+        document.body.classList.add(`theme-${e.target.value}`);
+      }
+    });
+
+    // Global F1 / Ctrl+K shortcut for Command Palette
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'F1' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k')) {
+        e.preventDefault();
+        openSnippetsModal();
+      }
+    });
+
+    // Populate Sidebar Snippets List
+    function renderSidebarSnippets() {
+      const snippets = GLOBAL_COMPLETIONS.filter(c => c.kind === 'snippet');
+      const container = document.getElementById('sidebar-snippets-list');
+      container.innerHTML = snippets.map((s, idx) => `
+        <div onclick="insertSnippetByIndex(${idx})" class="p-2 rounded bg-[#1e1e1e] hover:bg-[#2a2d2e] border border-[#333333] cursor-pointer transition">
+          <div class="flex items-center justify-between">
+            <span class="font-mono text-xs font-bold text-[#dcdcaa]">${escapeHtml(s.label)}</span>
+            <span class="text-[10px] text-[#75beff]">Insert</span>
+          </div>
+          <div class="text-[11px] text-[#aaaaaa] mt-0.5 truncate">${escapeHtml(s.detail)}</div>
+        </div>
+      `).join('');
+    }
+
+    // Measure monospace character width accurately for IntelliSense popup placement
+    function measureCharWidth() {
+      const span = document.createElement('span');
+      span.className = 'editor-shared-metrics';
+      span.style.position = 'absolute';
+      span.style.visibility = 'hidden';
+      span.style.padding = '0';
+      span.textContent = 'MMMMMMMMMM';
+      document.body.appendChild(span);
+      state.charWidth = span.getBoundingClientRect().width / 10;
+      document.body.removeChild(span);
+    }
+
+    /*************************************************************************
+     * 12. INITIALIZATION
+     *************************************************************************/
+    window.onload = function() {
+      measureCharWidth();
+      loadWorkspace();
+      renderSidebarSnippets();
+      switchFile(state.activeFile);
+      executeJavaScript();
+      els.textarea.focus();
+    };
+  </script>
+</body>
+</html>
